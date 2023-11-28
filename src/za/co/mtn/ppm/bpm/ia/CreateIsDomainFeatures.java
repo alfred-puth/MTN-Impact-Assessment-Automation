@@ -55,7 +55,7 @@ public class CreateIsDomainFeatures {
                 log("No Impacted Systems captured in the IS PMO Impact Assessment request."
                         .concat(" No IS PMO Features required while no Impacted Systems available."));
             } else {
-                log("Impacted System Domain(s): " + iaDomainArray.toString());
+                log("Impacted System Domain(s): " + iaDomainArray);
                 log("<<-- Set PPM Feature Domains Array -->>");
                 ArrayList<String> featureDomainArray = iap.getFeatureDomainsData(ppmBaseUrl, username, password,
                         SQL_REST_URL, iap.setFeatureDomainListSql(requestId));
@@ -66,8 +66,11 @@ public class CreateIsDomainFeatures {
                 log("<<-- IT Project Data -->>");
                 HashMap<String, String> itProjectInformation = iap.getItProjectData(ppmBaseUrl, username, password,
                         SQL_REST_URL, iap.setItProjectInformationSql(projectId));
+                log("<<-- IT Project Release Data -->>");
+                HashMap<String, String> itProjectReleaseInformation = iap.getItProjectReleaseData(ppmBaseUrl, username, password,
+                        SQL_REST_URL, iap.setItProjectReleaseInformationSql(projectId));
                 log("<<-- Testing JSON Payload -->>");
-                JSONObject featureRequest = iap.setJsonObjectRequestType(requestId,projectId,projectName,"Billing CRM and OMS",itProjectInformation);
+                JSONObject featureRequest = iap.setJsonObjectRequestType(requestId,projectId,projectName,"Billing CRM and OMS",itProjectInformation, itProjectReleaseInformation);
             }
 
         } catch (Exception e) {
