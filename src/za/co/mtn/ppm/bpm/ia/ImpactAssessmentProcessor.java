@@ -81,6 +81,14 @@ public class ImpactAssessmentProcessor {
         return sql;
     }
 
+    protected String setEpmoProjectInformationSql(String prjId) {
+        // Create the sql string
+        String sql = "SELECT pp.project_id AS ispmo_epmo_prj_url, pp.pfm_request_id AS ispmo_epmo_prj_num, nvl(pm_utils.get_project_manager_name_list(pp.project_id), 'null') AS ispmo_epmo_pm, nvl(ppt.project_type_name, 'null') AS ispmo_epmo_type";
+        sql = sql.concat(" FROM kcrt_fg_pfm_project kfpp").concat(" INNER JOIN kcrt_request_details krd ON kfpp.request_id = krd.request_id AND krd.batch_number = 1").concat(" INNER JOIN pm_projects pp ON krd.parameter3 = pp.project_id").concat(" INNER JOIN pm_project_types ppt ON pp.project_id = ppt.project_id");
+        sql = sql.concat(" WHERE kfpp.prj_project_id = ").concat(prjId);
+        return sql;
+    }
+
     /**
      * Method that use the sqlRunner to get the Impacted System Domains from IS PMO
      * Impact Assessment RT.
@@ -345,7 +353,7 @@ public class ImpactAssessmentProcessor {
     }
 
     protected HashMap<String, String> getItProjectReleaseData(String ppmBaseUrl, String username, String password,
-                                                       String restUrl, String sqlString) throws IOException, JSONException {
+                                                              String restUrl, String sqlString) throws IOException, JSONException {
         // REST API URL
         URL sqlUrl = new URL(ppmBaseUrl + restUrl);
         log("POST Request Run SQL Query URL: " + sqlUrl.toString());
@@ -425,6 +433,71 @@ public class ImpactAssessmentProcessor {
         return result;
     }
 
+    protected HashMap<String, String> getEpmoProjectData(String ppmBaseUrl, String username, String password,
+                                                         String restUrl, String sqlString) throws IOException, JSONException {
+        // REST API URL
+        URL sqlUrl = new URL(ppmBaseUrl + restUrl);
+        log("POST Request Run SQL Query URL: " + sqlUrl.toString());
+        // Encode the Username and Password. Using Admin user to ensure
+        String encoding = Base64.getEncoder()
+                .encodeToString((username + ":" + password).getBytes(StandardCharsets.ISO_8859_1));
+        // Set the connection and all the parameters
+        HttpURLConnection connection = null;
+        connection = (HttpURLConnection) sqlUrl.openConnection();
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Authorization", "basic " + encoding);
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty("accept", "application/json");
+        connection.setRequestProperty("Ephemeral", "true");
+        connection.setDoOutput(true);
+        // Use output stream to set the payload of the POST Request
+        OutputStream restOutput = connection.getOutputStream();
+        String jsonPayload = "{ \"querySql\": \"" + sqlString + "\"}";
+        // Execute the Pay load, flush the output stream and close the stream
+        restOutput.write(jsonPayload.getBytes());
+        restOutput.flush();
+        restOutput.close();
+        // Get the Response from server for the GET REST Request done.
+        if (connection.getResponseCode() != 200) {
+            throw new RuntimeException("Failed : HTTP error code : " + connection.getResponseCode());
+        }
+        // JSON Rerturn
+        BufferedReader br = new BufferedReader(new InputStreamReader((connection.getInputStream())));
+        // Get the runSqlQuery Data.
+        // JSONTokener - Set all the JSON keys as a token from the Json Return string.
+        JSONTokener tokener = new JSONTokener(br);
+        // Set the JSONObject from the JSONTokener
+        JSONObject json = new JSONObject(tokener);
+        log("JSON SQL Return output: " + json.toString());
+        // Set the JSONArray with the "" token Array List
+        JSONArray jsonColumnHeaders = new JSONArray(json.getString("columnHeaders"));
+        // Set the JSONArray with the "results" token Array List
+        JSONArray jsonResults = new JSONArray(json.getString("results"));
+        // Set the "values" token Array from the "results" token Array
+        JSONArray jsonValues = new JSONArray(jsonResults.toString());
+        // Convert to an JSONObject to get the jsonValues Array
+        JSONTokener tokenerVal = new JSONTokener(jsonValues.get(0).toString());
+        JSONObject jsonVal = new JSONObject(tokenerVal);
+        // Set the JSONArray with the "results" token Array List
+        JSONArray jsonValue = new JSONArray(jsonVal.getString("values"));
+        // Declare HashMap<String, String> result for the return result
+        HashMap<String, String> result = new HashMap<>();
+        // Add the jsonColumnHeaders as Keys and jsonValue as Values to the HashMap
+        // Array
+        // ISPMO_EPMO_PRJ_URL
+        result.put(jsonColumnHeaders.getString(0), ppmBaseUrl + PRJ_URL + jsonValue.getString(0));
+        // ISPMO_EPMO_PRJ_NUM
+        result.put(jsonColumnHeaders.getString(1), jsonValue.getString(1));
+        // ISPMO_EPMO_PM
+        result.put(jsonColumnHeaders.getString(2), jsonValue.getString(2));
+        // ISPMO_EPMO_TYPE
+        result.put(jsonColumnHeaders.getString(3), jsonValue.getString(3));
+        // Disconnect the connection
+        connection.disconnect();
+        // Return Data as HashMap
+        return result;
+    }
+
     /**
      * Method to get the list of Domains that does not have a IS PMO Feature RT
      * created for the linked IS PMO Impact Assessment RT
@@ -450,8 +523,8 @@ public class ImpactAssessmentProcessor {
         return result;
     }
 
-    protected JSONObject setJsonObjectRequestType(String iaRequestId, String iaProjectId, String iaProjectName, String iaIsDomain,
-                                                  HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData) {
+    private JSONObject setJsonObjectRequestType(String iaRequestId, String iaProjectId, String iaProjectName, String iaIsDomain,
+                                                  HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData) {
         // Get the current date and time in "yyyy-MM-dd'T'HH:mm:ss" format" No need to
         // include include the micro seconds and timezone
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -512,119 +585,145 @@ public class ImpactAssessmentProcessor {
         // HashMap Array: itProjectData
         // ISPMO_PRJ_NUM
         JSONObject tokenIspmoPrjNumObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueIspmoPrjNumArray = new JSONArray();
+        // Check if container key exists
         if (itProjectData.containsKey("ISPMO_PRJ_NUM")) {
             tokenIspmoPrjNumObj.put("token", "REQD.ISPMO_PRJ_NUM");
+            // Set the stringValue Array
+            JSONArray stringValueIspmoPrjNumArray = new JSONArray();
             stringValueIspmoPrjNumArray.put(itProjectData.get("ISPMO_PRJ_NUM"));
+            // Add Array to the JSONObject
             tokenIspmoPrjNumObj.put("stringValue", stringValueIspmoPrjNumArray);
         }
         // ISPMO_PRJ_URL
         JSONObject tokenIspmoPrjUrlObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueIspmoPrjUrlArray = new JSONArray();
+        // Check if container key exists
         if (itProjectData.containsKey("ISPMO_PRJ_URL")) {
             tokenIspmoPrjUrlObj.put("token", "REQD.ISPMO_PRJ_URL");
+            // Set the stringValue Array
+            JSONArray stringValueIspmoPrjUrlArray = new JSONArray();
             stringValueIspmoPrjUrlArray.put(itProjectData.get("ISPMO_PRJ_URL"));
+            // Add Array to the JSONObject
             tokenIspmoPrjUrlObj.put("stringValue", stringValueIspmoPrjUrlArray);
         }
         // ISPMO_PRJ_PHASE
         JSONObject tokenIspmoPrjPhaseObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueIspmoPrjPhaseArray = new JSONArray();
+        // Check if container key exists
         if (itProjectData.containsKey("ISPMO_PRJ_PHASE")) {
             tokenIspmoPrjPhaseObj.put("token", "REQD.ISPMO_PRJ_PHASE");
+            // Set the stringValue Array
+            JSONArray stringValueIspmoPrjPhaseArray = new JSONArray();
             stringValueIspmoPrjPhaseArray.put(itProjectData.get("ISPMO_PRJ_PHASE"));
+            // Add Array to the JSONObject
             tokenIspmoPrjPhaseObj.put("stringValue", stringValueIspmoPrjPhaseArray);
         }
         // ISPMO_PRJ_STATUS
         JSONObject tokenIspmoPrjStatusObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueIspmoPrjStatusArray = new JSONArray();
+        // Check if container key exists
         if (itProjectData.containsKey("ISPMO_PRJ_STATUS")) {
             tokenIspmoPrjStatusObj.put("token", "REQD.ISPMO_PRJ_STATUS");
+            // Set the stringValue Array
+            JSONArray stringValueIspmoPrjStatusArray = new JSONArray();
             stringValueIspmoPrjStatusArray.put(itProjectData.get("ISPMO_PRJ_STATUS"));
+            // Add Array to the JSONObject
             tokenIspmoPrjStatusObj.put("stringValue", stringValueIspmoPrjStatusArray);
         }
         // EPMO_PROJECT_NUM
         JSONObject tokenEpmoProjectNumObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueEpmoProjectNumArray = new JSONArray();
+        // Check if container key exists
         if (itProjectData.containsKey("EPMO_PROJECT_NUM")) {
             tokenEpmoProjectNumObj.put("token", "REQD.EPMO_PROJECT_NUM");
+            // Set the stringValue Array
+            JSONArray stringValueEpmoProjectNumArray = new JSONArray();
             stringValueEpmoProjectNumArray.put(itProjectData.get("EPMO_PROJECT_NUM"));
+            // Add Array to the JSONObject
             tokenEpmoProjectNumObj.put("stringValue", stringValueEpmoProjectNumArray);
         }
         // ISPMO_PM
         JSONObject tokenIspmoPmObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueIspmoPmArray = new JSONArray();
+        // Check if container key exists
         if (itProjectData.containsKey("ISPMO_PM")) {
             tokenIspmoPmObj.put("token", "REQD.ISPMO_PM");
+            // Set the stringValue Array
+            JSONArray stringValueIspmoPmArray = new JSONArray();
             stringValueIspmoPmArray.put(itProjectData.get("ISPMO_PM"));
+            // Add Array to the JSONObject
             tokenIspmoPmObj.put("stringValue", stringValueIspmoPmArray);
         }
         // ISPMO_PRJ_RAG
         JSONObject tokenIspmoPrjRagObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueIspmoPrjRagArray = new JSONArray();
+        // Check if container key exists
         if (itProjectData.containsKey("ISPMO_PRJ_RAG")) {
             tokenIspmoPrjRagObj.put("token", "REQD.ISPMO_PRJ_RAG");
+            // Set the stringValue Array
+            JSONArray stringValueIspmoPrjRagArray = new JSONArray();
             stringValueIspmoPrjRagArray.put(itProjectData.get("ISPMO_PRJ_RAG"));
+            // Add Array to the JSONObject
             tokenIspmoPrjRagObj.put("stringValue", stringValueIspmoPrjRagArray);
         }
         // ISPM_EPMO_BUSINESS_UNIT
         JSONObject tokenBusinessUnitObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueBusinessUnitArray = new JSONArray();
+        // Check if container key exists
         if (itProjectData.containsKey("ISPM_EPMO_BUSINESS_UNIT")) {
             tokenBusinessUnitObj.put("token", "REQD.ISPM_EPMO_BUSINESS_UNIT");
+            // Set the stringValue Array
+            JSONArray stringValueBusinessUnitArray = new JSONArray();
             stringValueBusinessUnitArray.put(itProjectData.get("ISPM_EPMO_BUSINESS_UNIT"));
+            // Add Array to the JSONObject
             tokenBusinessUnitObj.put("stringValue", stringValueBusinessUnitArray);
         }
         // ISPMO_EPMO_SUB_AREA
         JSONObject tokenSubAreaObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueSubAreaArray = new JSONArray();
+        // Check if container key exists
         if (itProjectData.containsKey("ISPMO_EPMO_SUB_AREA")) {
             tokenSubAreaObj.put("token", "REQD.ISPMO_EPMO_SUB_AREA");
+            // Set the stringValue Array
+            JSONArray stringValueSubAreaArray = new JSONArray();
             stringValueSubAreaArray.put(itProjectData.get("ISPMO_EPMO_SUB_AREA"));
+            // Add Array to the JSONObject
             tokenSubAreaObj.put("stringValue", stringValueSubAreaArray);
         }
         // ISPMO_EPMO_BU_PRIORITY
         JSONObject tokenBuPriorityObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueBuPriorityArray = new JSONArray();
+        // Check if container key exists
         if (itProjectData.containsKey("ISPMO_EPMO_BU_PRIORITY")) {
             tokenBuPriorityObj.put("token", "REQD.ISPMO_EPMO_BU_PRIORITY");
+            // Set the stringValue Array
+            JSONArray stringValueBuPriorityArray = new JSONArray();
             stringValueBuPriorityArray.put(itProjectData.get("ISPMO_EPMO_BU_PRIORITY"));
+            // Add Array to the JSONObject
             tokenBuPriorityObj.put("stringValue", stringValueBuPriorityArray);
         }
         // ISPMO_EPMO_ORG_PRIORITY
         JSONObject tokenOrgPriorityObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueOrgPriorityArray = new JSONArray();
+        // Check if container key exists
         if (itProjectData.containsKey("ISPMO_EPMO_ORG_PRIORITY")) {
             tokenOrgPriorityObj.put("token", "REQD.ISPMO_EPMO_ORG_PRIORITY");
+            // Set the stringValue Array
+            JSONArray stringValueOrgPriorityArray = new JSONArray();
             stringValueOrgPriorityArray.put(itProjectData.get("ISPMO_EPMO_ORG_PRIORITY"));
+            // Add Array to the JSONObject
             tokenOrgPriorityObj.put("stringValue", stringValueOrgPriorityArray);
         }
         // ISPMO_PROJECT_TYPE
         JSONObject tokenIspmoProjectTypeObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueIspmoProjectTypeArray = new JSONArray();
+        // Check if container key exists
         if (itProjectData.containsKey("ISPMO_PROJECT_TYPE")) {
             tokenIspmoProjectTypeObj.put("token", "REQD.ISPMO_PROJECT_TYPE");
+            // Set the stringValue Array
+            JSONArray stringValueIspmoProjectTypeArray = new JSONArray();
             stringValueIspmoProjectTypeArray.put(itProjectData.get("ISPMO_PROJECT_TYPE"));
+            // Add Array to the JSONObject
             tokenIspmoProjectTypeObj.put("stringValue", stringValueIspmoProjectTypeArray);
         }
         // ISPMO_PRJ_SHORT_DESC
         JSONObject tokenIspmoPrjShortDescriptionObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueIspmoPrjShortDescriptionArray = new JSONArray();
+        // Check if container key exists
         if (itProjectData.containsKey("ISPMO_PRJ_SHORT_DESC")) {
             tokenIspmoPrjShortDescriptionObj.put("token", "REQD.ISPMO_PRJ_SHORT_DESC");
+            // Set the stringValue Array
+            JSONArray stringValueIspmoPrjShortDescriptionArray = new JSONArray();
             stringValueIspmoPrjShortDescriptionArray.put(itProjectData.get("ISPMO_PRJ_SHORT_DESC"));
+            // Add Array to the JSONObject
             tokenIspmoPrjShortDescriptionObj.put("stringValue", stringValueIspmoPrjShortDescriptionArray);
         }
         // End the IT Project fields to create the IS PMO Feature from the HashMap Array: itProjectData
@@ -632,59 +731,117 @@ public class ImpactAssessmentProcessor {
         // HashMap Array: itReleaseData
         // ISPMO_INCL_RETAIL_BUILD
         JSONObject tokenIspmoRetailBuildObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueIspmoRetailBuildArray = new JSONArray();
+        // Check if container key exists
         if (itReleaseData.containsKey("ISPMO_INCL_RETAIL_BUILD")) {
             tokenIspmoRetailBuildObj.put("token", "REQD.ISPMO_INCL_RETAIL_BUILD");
+            // Set the stringValue Array
+            JSONArray stringValueIspmoRetailBuildArray = new JSONArray();
             stringValueIspmoRetailBuildArray.put(itReleaseData.get("ISPMO_INCL_RETAIL_BUILD"));
+            // Add Array to the JSONObject
             tokenIspmoRetailBuildObj.put("stringValue", stringValueIspmoRetailBuildArray);
         }
         // ISPMO_INCL_CHARG_SYS
         JSONObject tokenIspmoChargingSystemsObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueIspmoChargingSystemsArray = new JSONArray();
+        // Check if container key exists
         if (itReleaseData.containsKey("ISPMO_INCL_CHARG_SYS")) {
             tokenIspmoChargingSystemsObj.put("token", "REQD.ISPMO_INCL_CHARG_SYS");
+            // Set the stringValue Array
+            JSONArray stringValueIspmoChargingSystemsArray = new JSONArray();
             stringValueIspmoChargingSystemsArray.put(itReleaseData.get("ISPMO_INCL_CHARG_SYS"));
+            // Add Array to the JSONObject
             tokenIspmoChargingSystemsObj.put("stringValue", stringValueIspmoChargingSystemsArray);
         }
         // ISPMO_INCL_WHOLSAL_REL
         JSONObject tokenIspmoWholesaleObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueIspmoWholesaleArray = new JSONArray();
+        // Check if container key exists
         if (itReleaseData.containsKey("ISPMO_INCL_WHOLSAL_REL")) {
             tokenIspmoWholesaleObj.put("token", "REQD.ISPMO_INCL_WHOLSAL_REL");
+            // Set the stringValue Array
+            JSONArray stringValueIspmoWholesaleArray = new JSONArray();
             stringValueIspmoWholesaleArray.put(itReleaseData.get("ISPMO_INCL_WHOLSAL_REL"));
+            // Add Array to the JSONObject
             tokenIspmoWholesaleObj.put("stringValue", stringValueIspmoWholesaleArray);
         }
         // ISPMO_INCL_SIYA_REL
         JSONObject tokenIspmoSiyakhulaObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueIspmoSiyakhulaArray = new JSONArray();
+        // Check if container key exists
         if (itReleaseData.containsKey("ISPMO_INCL_SIYA_REL")) {
             tokenIspmoSiyakhulaObj.put("token", "REQD.ISPMO_INCL_SIYA_REL");
+            // Set the stringValue Array
+            JSONArray stringValueIspmoSiyakhulaArray = new JSONArray();
             stringValueIspmoSiyakhulaArray.put(itReleaseData.get("ISPMO_INCL_SIYA_REL"));
+            // Add Array to the JSONObject
             tokenIspmoSiyakhulaObj.put("stringValue", stringValueIspmoSiyakhulaArray);
         }
         // ISPMO_INCL_ILULA_REL
         JSONObject tokenIspmoIlulaObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueIspmoIlulaArray = new JSONArray();
+        // Check if container key exists
         if (itReleaseData.containsKey("ISPMO_INCL_ILULA_REL")) {
             tokenIspmoIlulaObj.put("token", "REQD.ISPMO_INCL_ILULA_REL");
+            // Set the stringValue Array
+            JSONArray stringValueIspmoIlulaArray = new JSONArray();
             stringValueIspmoIlulaArray.put(itReleaseData.get("ISPMO_INCL_ILULA_REL"));
+            // Add Array to the JSONObject
             tokenIspmoIlulaObj.put("stringValue", stringValueIspmoIlulaArray);
         }
         // ISPMO_INCL_SIEBEL_REL
         JSONObject tokenIspmoSiebelObj = new JSONObject();
-        // Set the stringValue Array
-        JSONArray stringValueIspmoSiebelArray = new JSONArray();
+        // Check if container key exists
         if (itReleaseData.containsKey("ISPMO_INCL_SIEBEL_REL")) {
             tokenIspmoSiebelObj.put("token", "REQD.ISPMO_INCL_SIEBEL_REL");
+            // Set the stringValue Array
+            JSONArray stringValueIspmoSiebelArray = new JSONArray();
             stringValueIspmoSiebelArray.put(itReleaseData.get("ISPMO_INCL_SIEBEL_REL"));
+            // Add Array to the JSONObject
             tokenIspmoSiebelObj.put("stringValue", stringValueIspmoSiebelArray);
         }
         // End the IT Project Release fields to create the IS PMO Feature from the HashMap Array: itReleaseData
+        // Start with the EPMO Project fields to create the IS PMO Feature from the HashMap Array: epmoPrjData
+        // ISPMO_EPMO_PRJ_URL
+        JSONObject tokenEpmoProjectUrlObj = new JSONObject();
+        // Check if container key exists
+        if (!epmoPrjData.isEmpty() && epmoPrjData.containsKey("ISPMO_EPMO_PRJ_URL")) {
+            tokenEpmoProjectUrlObj.put("token", "REQD.ISPMO_EPMO_PRJ_URL");
+            // Set the stringValue Array
+            JSONArray stringValueEpmoProjectUrlArray = new JSONArray();
+            stringValueEpmoProjectUrlArray.put(epmoPrjData.get("ISPMO_EPMO_PRJ_URL"));
+            // Add Array to the JSONObject
+            tokenEpmoProjectUrlObj.put("stringValue", stringValueEpmoProjectUrlArray);
+        }
+        // ISPMO_EPMO_PRJ_NUM
+        JSONObject tokenEpmoProjectNumberObj = new JSONObject();
+        // Check if container key exists
+        if (!epmoPrjData.isEmpty() && epmoPrjData.containsKey("ISPMO_EPMO_PRJ_NUM")) {
+            tokenEpmoProjectNumberObj.put("token", "REQD.ISPMO_EPMO_PRJ_NUM");
+            // Set the stringValue Array
+            JSONArray stringValueEpmoProjectNumberArray = new JSONArray();
+            stringValueEpmoProjectNumberArray.put(epmoPrjData.get("ISPMO_EPMO_PRJ_NUM"));
+            // Add Array to the JSONObject
+            tokenEpmoProjectNumberObj.put("stringValue", stringValueEpmoProjectNumberArray);
+        }
+        // ISPMO_EPMO_PM
+        JSONObject tokenEpmoProjectManagerObj = new JSONObject();
+        // Check if container key exists
+        if (!epmoPrjData.isEmpty() && epmoPrjData.containsKey("ISPMO_EPMO_PM")) {
+            tokenEpmoProjectManagerObj.put("token", "REQD.ISPMO_EPMO_PM");
+            // Set the stringValue Array
+            JSONArray stringValueEpmoProjectManagerArray = new JSONArray();
+            stringValueEpmoProjectManagerArray.put(epmoPrjData.get("ISPMO_EPMO_PM"));
+            // Add Array to the JSONObject
+            tokenEpmoProjectManagerObj.put("stringValue", stringValueEpmoProjectManagerArray);
+        }
+        // ISPMO_EPMO_TYPE
+        JSONObject tokenEpmoProjectTypeObj = new JSONObject();
+        // Check if container key exists
+        if (!epmoPrjData.isEmpty() && epmoPrjData.containsKey("ISPMO_EPMO_TYPE")) {
+            tokenEpmoProjectTypeObj.put("token", "REQD.ISPMO_EPMO_TYPE");
+            // Set the stringValue Array
+            JSONArray stringValueEpmoProjectTypeArray = new JSONArray();
+            stringValueEpmoProjectTypeArray.put(epmoPrjData.get("ISPMO_EPMO_TYPE"));
+            // Add Array to the JSONObject
+            tokenEpmoProjectTypeObj.put("stringValue", stringValueEpmoProjectTypeArray);
+        }
+        // End the EPMO Project fields to create the IS PMO Feature from the HashMap Array: epmoPrjData
         // Set the Field Array for the IS PMO Feature Request dynamically depending on the data
         JSONArray fieldArray = new JSONArray();
         fieldArray.put(tokensLastUpdateDateObj);
@@ -711,6 +868,10 @@ public class ImpactAssessmentProcessor {
         if (!tokenIspmoSiyakhulaObj.isEmpty()) fieldArray.put(tokenIspmoSiyakhulaObj);
         if (!tokenIspmoIlulaObj.isEmpty()) fieldArray.put(tokenIspmoIlulaObj);
         if (!tokenIspmoSiebelObj.isEmpty()) fieldArray.put(tokenIspmoSiebelObj);
+        if (!tokenEpmoProjectUrlObj.isEmpty()) fieldArray.put(tokenEpmoProjectUrlObj);
+        if (!tokenEpmoProjectNumberObj.isEmpty()) fieldArray.put(tokenEpmoProjectNumberObj);
+        if (!tokenEpmoProjectManagerObj.isEmpty()) fieldArray.put(tokenEpmoProjectManagerObj);
+        if (!tokenEpmoProjectTypeObj.isEmpty()) fieldArray.put(tokenEpmoProjectTypeObj);
         // Set the Field Object
         JSONObject fieldObj = new JSONObject();
         fieldObj.put("field", fieldArray);
@@ -719,13 +880,48 @@ public class ImpactAssessmentProcessor {
         jsonObj.put("fields", fieldObj);
         jsonObj.put("sourceType", "INTERFACE_RI");
         jsonObj.put("requestType", "IS PMO Feature");
-        log("JSON Payload Generated: " + jsonObj.toString());
-//		if(tokenIspmoPrjNumObj.isEmpty()) {
-//			log("II Project Number Object is Empty");
-//		} else {
-//			log("II Project Number Object is Not Empty");
-//		}
-        return null;
+        return jsonObj;
+    }
+
+    protected String createIspmoFeatureRequest(String ppmBaseUrl, String username, String password, String restUrl, String iaRequestId, String iaProjectId, String iaProjectName, String iaIsDomain,
+                                             HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData) throws IOException, JSONException {
+
+        // REST API URL
+        URL requestUrl = new URL(ppmBaseUrl + restUrl);
+        System.out.println("POST Request Creating RT URL: " + requestUrl.toString());
+        // Encode the Username and Password. Using Admin user to ensure
+        String encoding = Base64.getEncoder()
+                .encodeToString((username + ":" + password).getBytes(StandardCharsets.ISO_8859_1));
+        // Set the connection and all the parameters
+        HttpURLConnection connection = null;
+        connection = (HttpURLConnection) requestUrl.openConnection();
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Authorization", "basic " + encoding);
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty("accept", "application/json");
+        connection.setRequestProperty("Ephemeral", "true");
+        connection.setDoOutput(true);
+        // Use output stream to set the payload of the POST Request
+        OutputStream restOutput = connection.getOutputStream();
+        // Execute the Pay load, flush the output stream and close the stream// Create the JSOPN Payload
+        String jsonPayload = setJsonObjectRequestType(iaRequestId, iaProjectId, iaProjectName, iaIsDomain, itProjectData, itReleaseData, epmoPrjData).toString();
+        restOutput.write(jsonPayload.getBytes());
+        restOutput.flush();
+        restOutput.close();
+        // Get the Response from server for the GET REST Request done.
+        if (connection.getResponseCode() != 200) {
+            throw new RuntimeException("Failed : HTTP error code : " + connection.getResponseCode());
+        }
+        BufferedReader br = new BufferedReader(new InputStreamReader((connection.getInputStream())));
+        // JSONTokener - Set all the JSON keys as a token from the Json Return string.
+        JSONTokener tokener = new JSONTokener(br);
+        // Set the JSONObject from the JSONTokener
+        JSONObject json = new JSONObject(tokener);
+        log("Successful POST response output Updating RT: " + json.toString());
+        // Disconnect the connection
+        connection.disconnect();
+        // Return String with Request ID
+        return json.getString("id");
     }
 
     /**

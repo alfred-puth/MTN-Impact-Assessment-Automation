@@ -1,7 +1,5 @@
 package za.co.mtn.ppm.bpm.ia;
 
-import org.json.JSONObject;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -17,7 +15,7 @@ public class CreateIsDomainFeatures {
     public static void main(String[] args) {
         // Verify that all Command Line Arguments has been submitted
 //		log("Arguments length: " + args.length);
-        if (args.length < 6) {
+        if (args.length < 7) {
             log("The Class Command Line Arguments is incorrect!");
             printCommandLineArguments();
             System.exit(1);
@@ -34,6 +32,8 @@ public class CreateIsDomainFeatures {
         log("PROJECT_ID: " + args[4]);
         // IT Project Name
         log("PROJECT_NAME: " + args[5]);
+        // IT Project Request Type
+        log("IT_PROJECT_REQUEST_TYPE: " + args[6]);
         log("**** End of Class Command Line Arguments****");
 
         final String ppmBaseUrl = args[0];
@@ -42,11 +42,12 @@ public class CreateIsDomainFeatures {
         final String requestId = args[3];
         final String projectId = args[4];
         final String projectName = args[5];
+        final String projectRequestType = args[6];
 
         ImpactAssessmentProcessor iap = new ImpactAssessmentProcessor();
         try {
             log("<<-- Impacted System Domains in Impact Assessment -->>");
-            log("<<- Get Impacted System Domains REST SQL ->>");
+            log("<<- Get Impacted System Domains REST SQL Query ->>");
             ArrayList<String> iaDomainArray = iap.getImpactedSystemDomainsData(ppmBaseUrl, username, password,
                     SQL_REST_URL, iap.setImpactedSytemsDomainListSql(requestId));
             // Check if Impact Assessment's Impacted Systems has any Domains captured for
@@ -60,21 +61,36 @@ public class CreateIsDomainFeatures {
                 ArrayList<String> featureDomainArray = iap.getFeatureDomainsData(ppmBaseUrl, username, password,
                         SQL_REST_URL, iap.setFeatureDomainListSql(requestId));
                 log("Feature Domain Array List: " + featureDomainArray.toString());
-                ArrayList<String> domianCreationList = iap.getFeatureCreatDomianList(iaDomainArray, featureDomainArray);
+                ArrayList<String> domainCreationList = iap.getFeatureCreatDomianList(iaDomainArray, featureDomainArray);
                 log("<<-- IS PPM Feature Domains to be Created -->>");
-                log("Domians list: " + domianCreationList.toString());
-                log("<<-- IT Project Data -->>");
+
+                if (domainCreationList.isEmpty()) {
+                    log("No New Domains therefor no IS PMO Features to be created");
+                }
+                log("Domains list: " + domainCreationList);
+                log("<<- Get IT Project Data REST SQL Query ->>");
                 HashMap<String, String> itProjectInformation = iap.getItProjectData(ppmBaseUrl, username, password,
                         SQL_REST_URL, iap.setItProjectInformationSql(projectId));
-                log("<<-- IT Project Release Data -->>");
+                log("<<- Get IT Project Release Data REST SQL Query->>");
                 HashMap<String, String> itProjectReleaseInformation = iap.getItProjectReleaseData(ppmBaseUrl, username, password,
                         SQL_REST_URL, iap.setItProjectReleaseInformationSql(projectId));
-                log("<<-- Testing JSON Payload -->>");
-                JSONObject featureRequest = iap.setJsonObjectRequestType(requestId,projectId,projectName,"Billing CRM and OMS",itProjectInformation, itProjectReleaseInformation);
+                HashMap<String, String> epmoProjectInformation = new HashMap<>();
+                if (projectRequestType.equalsIgnoreCase("IS PMO IT-EPMO Project")) {
+                    log("<<- Get EPMO Project Data REST SQL Query->>");
+                    epmoProjectInformation = iap.getEpmoProjectData(ppmBaseUrl, username, password,
+                            SQL_REST_URL, iap.setEpmoProjectInformationSql(projectId));
+                }
+                log("<<-- Create IS PMO Feature(s)  -->>");
+                for (String domainList : domainCreationList) {
+                    log("Domain List " + domainCreationList.indexOf(domainList) + ": " + domainList);
+                    String newRequestId = iap.createIspmoFeatureRequest(ppmBaseUrl, username, password, REQ_REST_URL, requestId, projectId, projectName, domainList, itProjectInformation, itProjectReleaseInformation, epmoProjectInformation);
+                    log("IS PMO Feature Number:" + newRequestId);
+                }
+
             }
 
         } catch (Exception e) {
-            // TODO Auto-generated catch block
+            //noinspection CallToPrintStackTrace
             e.printStackTrace();
             System.exit(1);
         }
