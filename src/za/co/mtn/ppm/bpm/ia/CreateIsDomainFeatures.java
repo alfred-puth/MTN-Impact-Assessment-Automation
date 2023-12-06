@@ -2,6 +2,8 @@ package za.co.mtn.ppm.bpm.ia;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 public class CreateIsDomainFeatures {
     // Variable to be used updating IS PMO Impact Assessment Request Type
@@ -81,10 +83,24 @@ public class CreateIsDomainFeatures {
                             SQL_REST_URL, iap.setEpmoProjectInformationSql(projectId));
                 }
                 log("<<-- Create IS PMO Feature(s)  -->>");
+                Set<String> stringSet = new HashSet<>();
                 for (String domainList : domainCreationList) {
                     log("Domain List " + domainCreationList.indexOf(domainList) + ": " + domainList);
+//                    iap.createIspmoFeatureRequestOkHttp(ppmBaseUrl, username, password, REQ_REST_URL, requestId, projectId, projectName, domainList, itProjectInformation, itProjectReleaseInformation, epmoProjectInformation);
                     String newRequestId = iap.createIspmoFeatureRequest(ppmBaseUrl, username, password, REQ_REST_URL, requestId, projectId, projectName, domainList, itProjectInformation, itProjectReleaseInformation, epmoProjectInformation);
-                    log("IS PMO Feature Number:" + newRequestId);
+                    log("Created IS PMO Feature Number:" + newRequestId);
+                    // Add the Request IDs to the String Set
+                    stringSet.add(newRequestId);
+                }
+                // Add the References is New IS PMO Features were created
+                if (stringSet.isEmpty()) {
+                    log("No IS PMO Feature(s) Created:");
+                } else {
+                    log("<<-- Create IS PMO Impact Assessment references to IS PMO Feature(s)  -->>");
+                    // Assigning the String Set to a comma separated String
+                    String referenceRequestIds = String.join(",", stringSet);
+                    // Run methed to add references
+                    iap.setRequestReference(ppmBaseUrl, username, password, REQ_REST_URL, requestId, referenceRequestIds, "CHILD");
                 }
 
             }
@@ -108,7 +124,7 @@ public class CreateIsDomainFeatures {
     /**
      * Method to write out to the console or log file
      *
-     * @param str
+     * @param str String to print to console
      */
     private static void log(final String str) {
         System.out.println(str);

@@ -1,5 +1,7 @@
 package za.co.mtn.ppm.bpm.ia;
 
+
+import okhttp3.*;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -524,7 +526,7 @@ public class ImpactAssessmentProcessor {
     }
 
     private JSONObject setJsonObjectRequestType(String iaRequestId, String iaProjectId, String iaProjectName, String iaIsDomain,
-                                                  HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData) {
+                                                HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData) {
         // Get the current date and time in "yyyy-MM-dd'T'HH:mm:ss" format" No need to
         // include include the micro seconds and timezone
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -884,44 +886,75 @@ public class ImpactAssessmentProcessor {
     }
 
     protected String createIspmoFeatureRequest(String ppmBaseUrl, String username, String password, String restUrl, String iaRequestId, String iaProjectId, String iaProjectName, String iaIsDomain,
-                                             HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData) throws IOException, JSONException {
+                                               HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData) throws IOException, JSONException {
 
         // REST API URL
-        URL requestUrl = new URL(ppmBaseUrl + restUrl);
-        System.out.println("POST Request Creating RT URL: " + requestUrl.toString());
+        String requestUrl = ppmBaseUrl + restUrl;
+        System.out.println("POST Request Creating RT URL: " + requestUrl);
         // Encode the Username and Password. Using Admin user to ensure
-        String encoding = Base64.getEncoder()
-                .encodeToString((username + ":" + password).getBytes(StandardCharsets.ISO_8859_1));
-        // Set the connection and all the parameters
-        HttpURLConnection connection = null;
-        connection = (HttpURLConnection) requestUrl.openConnection();
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Authorization", "basic " + encoding);
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.setRequestProperty("accept", "application/json");
-        connection.setRequestProperty("Ephemeral", "true");
-        connection.setDoOutput(true);
-        // Use output stream to set the payload of the POST Request
-        OutputStream restOutput = connection.getOutputStream();
-        // Execute the Pay load, flush the output stream and close the stream// Create the JSOPN Payload
+        final String auth = username + ":" + password;
+        String encoding = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.ISO_8859_1));
+        final String authHeader = "Basic " + encoding;
+        // Set the POST RRequest and all the parameters
+        OkHttpClient client = new OkHttpClient();
+        MediaType mediaType = MediaType.parse("application/json");
+        // JSON Payload
         String jsonPayload = setJsonObjectRequestType(iaRequestId, iaProjectId, iaProjectName, iaIsDomain, itProjectData, itReleaseData, epmoPrjData).toString();
-        restOutput.write(jsonPayload.getBytes());
-        restOutput.flush();
-        restOutput.close();
+        // POST Request Body
+        RequestBody body = RequestBody.create(MediaType.parse("application/json"), jsonPayload);
+        // POST Request
+        Request request = new Request.Builder()
+                .url(requestUrl).addHeader("Authorization", authHeader)
+                .addHeader("accept", "application/json")
+                .addHeader("Ephemeral", "true")
+                .post(body)
+                .build();
+        Call call = client.newCall(request);
+        // Execute the POST Request
+        Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (connection.getResponseCode() != 200) {
-            throw new RuntimeException("Failed : HTTP error code : " + connection.getResponseCode());
+        if (response.code() != 200) {
+            throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
-        BufferedReader br = new BufferedReader(new InputStreamReader((connection.getInputStream())));
+
         // JSONTokener - Set all the JSON keys as a token from the Json Return string.
-        JSONTokener tokener = new JSONTokener(br);
+        assert response.body() != null : "The POST Return Body is Empty";
+//        JSONTokener tokener = new JSONTokener(response.body().toString());
         // Set the JSONObject from the JSONTokener
-        JSONObject json = new JSONObject(tokener);
+//        JSONObject json = new JSONObject(tokener);
+        JSONObject json = new JSONObject(response.body().string());
         log("Successful POST response output Updating RT: " + json.toString());
         // Disconnect the connection
-        connection.disconnect();
+        response.close();
         // Return String with Request ID
         return json.getString("id");
+    }
+
+    protected void setRequestReference(String ppmBaseUrl, String username, String password, String restUrl, String sourceRequestId, String targetRequestIds, String relationshipCode) throws IOException {
+        // Rest URL
+        String putRequestUrl = ppmBaseUrl + restUrl + "/" + sourceRequestId + "/addReference/" + targetRequestIds + "/{refRelName}?refRelName=" + relationshipCode;
+        // Encode the Username and Password. Using Admin user to ensure
+        final String auth = username + ":" + password;
+        String encoding = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.ISO_8859_1));
+        final String authHeader = "Basic " + encoding;
+        OkHttpClient client = new OkHttpClient().newBuilder()
+                .build();
+        MediaType mediaType = MediaType.parse("text/plain");
+        RequestBody body = RequestBody.create(mediaType, "");
+        Request request = new Request.Builder()
+                .url(putRequestUrl)
+                .addHeader("Ephemeral", "true")
+                .addHeader("Authorization", authHeader)
+                .put(body)
+                .build();
+        Response response = client.newCall(request).execute();
+        if (response.code() == 200) {
+            log("Request Reference PUT Response: References Successfully Added");
+        } else {
+            throw new RuntimeException("Failed : HTTP error code : " + response.code());
+        }
+
+        response.close();
     }
 
     /**
