@@ -1,0 +1,9 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="MtnIspmoImpactAssessmentAutomation:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/MtnIspmoImpactAssessmentAutomation_jar</output-path>
+    <root id="archive" name="ispmo-ia-create-is-feature.jar">
+      <element id="module-output" name="MtnIspmoImpactAssessmentAutomation" />
+      <element id="module-source" name="MtnIspmoImpactAssessmentAutomation" />
+    </root>
+  </artifact>
+</component>

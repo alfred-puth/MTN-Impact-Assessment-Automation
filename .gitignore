@@ -27,3 +27,4 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+/src/za/co/mtn/ppm/bpm/ia/Testing.java

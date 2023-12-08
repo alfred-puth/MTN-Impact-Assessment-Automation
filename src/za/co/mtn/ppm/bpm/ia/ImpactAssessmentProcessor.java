@@ -7,26 +7,23 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+/**
+ * Class that process the creation methods and updating methods of the IS PMO Feature Request from the IS PMO Impact Assessment Request
+ */
 public class ImpactAssessmentProcessor {
-    // Constant variables
+    // Constant variables for the class
     private static final String PRJ_URL = "project/ViewProject.do?projectId=";
 
     /**
-     * Method to set the SQL string to be used for extracting the Domain list from
-     * the Impacted Systems Table Component on the IS PMO Impact Assessment RT
+     * Method to set the SQL string to be used for extracting the Domain list from the Impacted Systems Table Component on the IS PMO Impact Assessment Request
      *
      * @param reqId IS PMO Impact Assessment Request ID
-     * @return
+     * @return SQL String with the created SQL statement
      */
     protected String setImpactedSytemsDomainListSql(String reqId) {
         // Create the sql string
@@ -41,11 +38,10 @@ public class ImpactAssessmentProcessor {
     }
 
     /**
-     * Method to set the SQL string to be used for extracting the existing IS PMO
-     * Features that are linked to the IS PMO Impact Assessment RT
+     * Method to set the SQL string to be used for extracting the existing IS PMO Features Domains that are linked to the IS PMO Impact Assessment
      *
      * @param reqId IS PMO Impact Assessment Request ID
-     * @return
+     * @return SQL String with the created SQL statement
      */
     protected String setFeatureDomainListSql(String reqId) {
         // Create the sql string
@@ -59,6 +55,12 @@ public class ImpactAssessmentProcessor {
         return sql;
     }
 
+    /**
+     * Method to set the SQL string to be used for extracting the IT Project Data that's linked to the IS PMO Impact Assessment
+     *
+     * @param prjId IT Project ID
+     * @return SQL String with the created SQL statement
+     */
     protected String setItProjectInformationSql(String prjId) {
         // Create the sql string
         String sql = "SELECT kfpp.request_id AS ispmo_prj_num, kfpp.prj_project_id AS ispmo_prj_url, nvl(kfpp.prj_phase_meaning, 'null') AS ispmo_prj_phase, nvl(ks.status_name, 'null') AS ispmo_prj_status, CASE WHEN krt.reference_code = 'IS_PMO_IT_KTLO_PROJECT' THEN 'null' ELSE nvl(krd.visible_parameter3, 'null') END AS epmo_project_num, nvl(replace(kfpp.prj_project_manager_username, '#@#', '; '), 'null') AS ispmo_pm, nvl(initcap(ppr.overall_health_indicator), 'null') AS ispmo_prj_rag, nvl(kfpp.prj_business_unit_meaning, 'null') AS ispm_epmo_business_unit, nvl(krhd.visible_parameter1, 'null') AS ispmo_epmo_sub_area, CASE WHEN krt.reference_code = 'IS_PMO_IT_KTLO_PROJECT' THEN 'null' ELSE nvl(krhd.visible_parameter2, 'null') END AS ispmo_epmo_bu_priority, CASE WHEN krt.reference_code = 'IS_PMO_IT_KTLO_PROJECT' THEN 'null' ELSE nvl(krhd.visible_parameter3, 'null') END AS ispmo_epmo_org_priority, nvl(krt.request_type_name, 'null') AS ispmo_project_type, nvl(kr.description, 'null') AS ispmo_prj_short_desc";
@@ -75,6 +77,12 @@ public class ImpactAssessmentProcessor {
         return sql;
     }
 
+    /**
+     * Method to set the SQL string to be used for extracting the IT Project Release Data that's linked to the IS PMO Impact Assessment
+     *
+     * @param prjId IT Project ID
+     * @return SQL String with the created SQL statement
+     */
     protected String setItProjectReleaseInformationSql(String prjId) {
         // Create the sql string
         String sql = "SELECT nvl(krd.visible_parameter11, 'null') AS ispmo_incl_retail_build, nvl(krd.visible_parameter12, 'null') AS ispmo_incl_charg_sys, nvl(krd.visible_parameter13, 'null') AS ispmo_incl_wholsal_rel, nvl(krd.visible_parameter14, 'null') AS ispmo_incl_siya_rel,  nvl(krd.visible_parameter15, 'null') AS ispmo_incl_ilula_rel, nvl(krd.visible_parameter20, 'null') AS ispmo_incl_siebel_rel";
@@ -83,6 +91,12 @@ public class ImpactAssessmentProcessor {
         return sql;
     }
 
+    /**
+     * Method to set the SQL string to be used for extracting the EPMO Project Data that's linked to the IS PMO Impact Assessment
+     *
+     * @param prjId IT Project ID
+     * @return SQL String with the created SQL statement
+     */
     protected String setEpmoProjectInformationSql(String prjId) {
         // Create the sql string
         String sql = "SELECT pp.project_id AS ispmo_epmo_prj_url, pp.pfm_request_id AS ispmo_epmo_prj_num, nvl(pm_utils.get_project_manager_name_list(pp.project_id), 'null') AS ispmo_epmo_pm, nvl(ppt.project_type_name, 'null') AS ispmo_epmo_type";
@@ -92,60 +106,57 @@ public class ImpactAssessmentProcessor {
     }
 
     /**
-     * Method that use the sqlRunner to get the Impacted System Domains from IS PMO
-     * Impact Assessment RT.
-     * <p>
+     * Method that use the sqlRunner to get the Impacted System Domains from IS PMO Impact Assessment RT.
      * Use POST REST "rest2/sqlRunner/runSqlQuery" to return the data
      *
-     * @param ppmBaseUrl - PPM Base URL for identifying the PPM environment
-     * @param username   - PPM User for access to the PPM entities.
-     * @param password   - PPM User password
-     * @param restUrl    - REST API URL for the method
-     * @param sqlString  - IS PMO Impact Assessment request ID
-     * @return
-     * @throws IOException
-     * @throws JSONException
+     * @param ppmBaseUrl PPM Base URL for identifying the PPM environment
+     * @param username   PPM User for access to the PPM entities.
+     * @param password   PPM User password
+     * @param restUrl    REST API URL for the method
+     * @param sqlString  IS PMO Impact Assessment request ID
+     * @return String Array list with the Impacted Domains
+     * @throws IOException   IO Exceptions are thrown up to the main class method
+     * @throws JSONException JSON Exceptions are thrown up to the main class method
      */
     protected ArrayList<String> getImpactedSystemDomainsData(String ppmBaseUrl, String username, String password,
                                                              String restUrl, String sqlString) throws IOException, JSONException {
         // REST API URL
-        URL sqlUrl = new URL(ppmBaseUrl + restUrl);
-        log("POST Request Run SQL Query URL: " + sqlUrl.toString());
+        String sqlUrl = ppmBaseUrl + restUrl;
+        log("POST Request Run SQL Query URL: " + sqlUrl);
         // Encode the Username and Password. Using Admin user to ensure
-        String encoding = Base64.getEncoder()
-                .encodeToString((username + ":" + password).getBytes(StandardCharsets.ISO_8859_1));
-        // Set the connection and all the parameters
-        HttpURLConnection connection;
-        connection = (HttpURLConnection) sqlUrl.openConnection();
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Authorization", "basic " + encoding);
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.setRequestProperty("accept", "application/json");
-        connection.setRequestProperty("Ephemeral", "true");
-        connection.setDoOutput(true);
-        // Use output stream to set the payload of the POST Request
-        OutputStream restOutput = connection.getOutputStream();
+        final String auth = username + ":" + password;
+        String encoding = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.ISO_8859_1));
+        final String authHeader = "Basic " + encoding;
+        // Set the POST Request and all the parameters
+        OkHttpClient client = new OkHttpClient();
+        MediaType mediaType = MediaType.parse("application/json");
+        // JSON Payload
         String jsonPayload = "{ \"querySql\": \"" + sqlString + "\"}";
-        // Execute the Pay load, flush the output stream and close the stream
-        restOutput.write(jsonPayload.getBytes());
-        restOutput.flush();
-        restOutput.close();
+        // POST Request Body
+        RequestBody body = RequestBody.create(mediaType, jsonPayload);
+        // POST Request
+        Request request = new Request.Builder()
+                .url(sqlUrl).addHeader("Authorization", authHeader)
+                .addHeader("accept", "application/json")
+                .addHeader("Ephemeral", "true")
+                .post(body)
+                .build();
+        Call call = client.newCall(request);
+        // Execute the POST Request
+        Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (connection.getResponseCode() != 200) {
-            throw new RuntimeException("Failed : HTTP error code : " + connection.getResponseCode());
+        if (response.code() != 200) {
+            throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
-        // JSON Rerturn
-        BufferedReader br = new BufferedReader(new InputStreamReader((connection.getInputStream())));
-        // Get the runSqlQuery Data.
-        // JSONTokener - Set all the JSON keys as a token from the Json Return string.
-        JSONTokener tokener = new JSONTokener(br);
-        // Set the JSONObject from the JSONTokener
-        JSONObject json = new JSONObject(tokener);
+        // Check Response Body
+        assert response.body() != null : "The POST Return Body is Empty";
+        // Set the JSONObject from the Response Body
+        JSONObject json = new JSONObject(response.body().string());
         log("JSON SQL Return output: " + json);
         // Set the JSONArray with the "results" token Array List
         JSONArray jsonResults = new JSONArray(json.getString("results"));
         ArrayList<String> result = new ArrayList<>();
-        if (jsonResults.length() != 0) {
+        if (!jsonResults.isEmpty()) {
             // Get the "values" token Array from the "results" token Array
             JSONArray jsonValues = new JSONArray(jsonResults.toString());
             for (int i = 0; i < jsonValues.length(); i++) {
@@ -157,67 +168,64 @@ public class ImpactAssessmentProcessor {
                 result.add(jsonValue.getString(0));
             }
         }
-        // Disconnect the connection
-        connection.disconnect();
-        // Return data as JSONArray
+        // Close the Response body
+        response.close();
+        // Return data as ArrayList<String>
         return result;
     }
 
     /**
-     * Method that use the sqlRunner to get the existing IS PMO Feature RT(s) linked
-     * to the IS PMO Impact Assessment
-     * <p>
+     * Method that use the sqlRunner to get the existing IS PMO Feature RT(s) linked to the IS PMO Impact Assessment
      * Use POST REST "rest2/sqlRunner/runSqlQuery" to return the data
      *
-     * @param ppmBaseUrl - PPM Base URL for identifying the PPM environment
-     * @param username   - PPM User for access to the PPM entities.
-     * @param password   - PPM User password
-     * @param restUrl    - REST API URL for the method
-     * @param sqlString  - IS PMO Impact Assessment request ID
-     * @return
-     * @throws IOException
-     * @throws JSONException
+     * @param ppmBaseUrl PPM Base URL for identifying the PPM environment
+     * @param username   PPM User for access to the PPM entities.
+     * @param password   PPM User password
+     * @param restUrl    REST API URL for the method
+     * @param sqlString  IS PMO Impact Assessment request ID
+     * @return String Array list with the Impacted Domains
+     * @throws IOException   IO Exceptions are thrown up to the main class method
+     * @throws JSONException JSON Exceptions are thrown up to the main class method
      */
     protected ArrayList<String> getFeatureDomainsData(String ppmBaseUrl, String username, String password,
                                                       String restUrl, String sqlString) throws IOException, JSONException {
         // REST API URL
-        URL sqlUrl = new URL(ppmBaseUrl + restUrl);
-        log("POST Request Run SQL Query URL: " + sqlUrl.toString());
+        String sqlUrl = ppmBaseUrl + restUrl;
+        log("POST Request Run SQL Query URL: " + sqlUrl);
         // Encode the Username and Password. Using Admin user to ensure
-        String encoding = Base64.getEncoder()
-                .encodeToString((username + ":" + password).getBytes(StandardCharsets.ISO_8859_1));
-        // Set the connection and all the parameters
-        HttpURLConnection connection = null;
-        connection = (HttpURLConnection) sqlUrl.openConnection();
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Authorization", "basic " + encoding);
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.setRequestProperty("accept", "application/json");
-        connection.setRequestProperty("Ephemeral", "true");
-        connection.setDoOutput(true);
-        // Use output stream to set the payload of the POST Request
-        OutputStream restOutput = connection.getOutputStream();
+        final String auth = username + ":" + password;
+        String encoding = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.ISO_8859_1));
+        final String authHeader = "Basic " + encoding;
+        // Set the POST Request and all the parameters
+        OkHttpClient client = new OkHttpClient();
+        MediaType mediaType = MediaType.parse("application/json");
+        // JSON Payload
         String jsonPayload = "{ \"querySql\": \"" + sqlString + "\"}";
-        // Execute the Pay load, flush the output stream and close the stream
-        restOutput.write(jsonPayload.getBytes());
-        restOutput.flush();
-        restOutput.close();
+        // POST Request Body
+        RequestBody body = RequestBody.create(mediaType, jsonPayload);
+        // POST Request
+        Request request = new Request.Builder()
+                .url(sqlUrl).addHeader("Authorization", authHeader)
+                .addHeader("accept", "application/json")
+                .addHeader("Ephemeral", "true")
+                .post(body)
+                .build();
+        Call call = client.newCall(request);
+        // Execute the POST Request
+        Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (connection.getResponseCode() != 200) {
-            throw new RuntimeException("Failed : HTTP error code : " + connection.getResponseCode());
+        if (response.code() != 200) {
+            throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
-        // JSON Rerturn
-        BufferedReader br = new BufferedReader(new InputStreamReader((connection.getInputStream())));
-        // Get the runSqlQuery Data.
-        // JSONTokener - Set all the JSON keys as a token from the Json Return string.
-        JSONTokener tokener = new JSONTokener(br);
-        // Set the JSONObject from the JSONTokener
-        JSONObject json = new JSONObject(tokener);
-        log("JSON SQL Return output: " + json.toString());
+        // Check Response Body
+        assert response.body() != null : "The POST Return Body is Empty";
+        // Set the JSONObject from the Response Body
+        JSONObject json = new JSONObject(response.body().string());
+        log("JSON SQL Return output: " + json);
         // Set the JSONArray with the "results" token Array List
         JSONArray jsonResults = new JSONArray(json.getString("results"));
         ArrayList<String> result = new ArrayList<>();
-        if (jsonResults.length() != 0) {
+        if (!jsonResults.isEmpty()) {
             // Get the "values" token Array from the "results" token Array
             JSONArray jsonValues = new JSONArray(jsonResults.toString());
             for (int i = 0; i < jsonValues.length(); i++) {
@@ -229,63 +237,60 @@ public class ImpactAssessmentProcessor {
                 result.add(jsonValue.getString(0));
             }
         }
-        // Disconnect the connection
-        connection.disconnect();
-        // Return data as JSONArray
+        // Close the Response body
+        response.close();
+        // Return data as ArrayList<String>
         return result;
     }
 
     /**
-     * Method that use the sqlRunner to get the IS PMO Impact Assessment linked
-     * Project Information for the creation of the IS PMO Feature RT
-     * <p>
+     * Method that use the sqlRunner to get the IS PMO Impact Assessment linked Project Information for the creation of the IS PMO Feature RT
      * Use POST REST "rest2/sqlRunner/runSqlQuery" to return the data
      *
-     * @param ppmBaseUrl - PPM Base URL for identifying the PPM environment
-     * @param username   - PPM User for access to the PPM entities.
-     * @param password   - PPM User password
-     * @param restUrl    - REST API URL for the method
-     * @param sqlString  - IS PMO Impact Assessment request ID
-     * @return
-     * @throws IOException
-     * @throws JSONException
+     * @param ppmBaseUrl PPM Base URL for identifying the PPM environment
+     * @param username   PPM User for access to the PPM entities.
+     * @param password   PPM User password
+     * @param restUrl    REST API URL for the method
+     * @param sqlString  IS PMO Impact Assessment request ID
+     * @return SQL Data as HasMap
+     * @throws IOException   IO Exceptions are thrown up to the main class method
+     * @throws JSONException JSON Exceptions are thrown up to the main class method
      */
     protected HashMap<String, String> getItProjectData(String ppmBaseUrl, String username, String password,
                                                        String restUrl, String sqlString) throws IOException, JSONException {
         // REST API URL
-        URL sqlUrl = new URL(ppmBaseUrl + restUrl);
-        log("POST Request Run SQL Query URL: " + sqlUrl.toString());
+        String sqlUrl = ppmBaseUrl + restUrl;
+        log("POST Request Run SQL Query URL: " + sqlUrl);
         // Encode the Username and Password. Using Admin user to ensure
-        String encoding = Base64.getEncoder()
-                .encodeToString((username + ":" + password).getBytes(StandardCharsets.ISO_8859_1));
-        // Set the connection and all the parameters
-        HttpURLConnection connection = null;
-        connection = (HttpURLConnection) sqlUrl.openConnection();
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Authorization", "basic " + encoding);
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.setRequestProperty("accept", "application/json");
-        connection.setRequestProperty("Ephemeral", "true");
-        connection.setDoOutput(true);
-        // Use output stream to set the payload of the POST Request
-        OutputStream restOutput = connection.getOutputStream();
+        final String auth = username + ":" + password;
+        String encoding = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.ISO_8859_1));
+        final String authHeader = "Basic " + encoding;
+        // Set the POST Request and all the parameters
+        OkHttpClient client = new OkHttpClient();
+        MediaType mediaType = MediaType.parse("application/json");
+        // JSON Payload
         String jsonPayload = "{ \"querySql\": \"" + sqlString + "\"}";
-        // Execute the Pay load, flush the output stream and close the stream
-        restOutput.write(jsonPayload.getBytes());
-        restOutput.flush();
-        restOutput.close();
+        // POST Request Body
+        RequestBody body = RequestBody.create(mediaType, jsonPayload);
+        // POST Request
+        Request request = new Request.Builder()
+                .url(sqlUrl).addHeader("Authorization", authHeader)
+                .addHeader("accept", "application/json")
+                .addHeader("Ephemeral", "true")
+                .post(body)
+                .build();
+        Call call = client.newCall(request);
+        // Execute the POST Request
+        Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (connection.getResponseCode() != 200) {
-            throw new RuntimeException("Failed : HTTP error code : " + connection.getResponseCode());
+        if (response.code() != 200) {
+            throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
-        // JSON Rerturn
-        BufferedReader br = new BufferedReader(new InputStreamReader((connection.getInputStream())));
-        // Get the runSqlQuery Data.
-        // JSONTokener - Set all the JSON keys as a token from the Json Return string.
-        JSONTokener tokener = new JSONTokener(br);
-        // Set the JSONObject from the JSONTokener
-        JSONObject json = new JSONObject(tokener);
-        log("JSON SQL Return output: " + json.toString());
+        // Check Response Body
+        assert response.body() != null : "The POST Return Body is Empty";
+        // Set the JSONObject from the Response Body
+        JSONObject json = new JSONObject(response.body().string());
+        log("JSON SQL Return output: " + json);
         // Set the JSONArray with the "" token Array List
         JSONArray jsonColumnHeaders = new JSONArray(json.getString("columnHeaders"));
         // Set the JSONArray with the "results" token Array List
@@ -348,48 +353,60 @@ public class ImpactAssessmentProcessor {
             result.put(jsonColumnHeaders.getString(12), jsonValue.getString(12));
         }
 
-        // Disconnect the connection
-        connection.disconnect();
-        // Return Data as HashMap
+        // Close the Response body
+        response.close();
+        // Return data as HashMap<String, String>
         return result;
     }
 
+    /**
+     * Method that use the sqlRunner to get the IS PMO Impact Assessment linked Project Release Information for the creation of the IS PMO Feature RT
+     * Use POST REST "rest2/sqlRunner/runSqlQuery" to return the data
+     *
+     * @param ppmBaseUrl PPM Base URL for identifying the PPM environment
+     * @param username   PPM User for access to the PPM entities.
+     * @param password   PPM User password
+     * @param restUrl    REST API URL for the method
+     * @param sqlString  IS PMO Impact Assessment request ID
+     * @return SQL Data as HasMap
+     * @throws IOException   IO Exceptions are thrown up to the main class method
+     * @throws JSONException JSON Exceptions are thrown up to the main class method
+     */
     protected HashMap<String, String> getItProjectReleaseData(String ppmBaseUrl, String username, String password,
                                                               String restUrl, String sqlString) throws IOException, JSONException {
         // REST API URL
-        URL sqlUrl = new URL(ppmBaseUrl + restUrl);
-        log("POST Request Run SQL Query URL: " + sqlUrl.toString());
+        String sqlUrl = ppmBaseUrl + restUrl;
+        log("POST Request Run SQL Query URL: " + sqlUrl);
         // Encode the Username and Password. Using Admin user to ensure
-        String encoding = Base64.getEncoder()
-                .encodeToString((username + ":" + password).getBytes(StandardCharsets.ISO_8859_1));
-        // Set the connection and all the parameters
-        HttpURLConnection connection = null;
-        connection = (HttpURLConnection) sqlUrl.openConnection();
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Authorization", "basic " + encoding);
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.setRequestProperty("accept", "application/json");
-        connection.setRequestProperty("Ephemeral", "true");
-        connection.setDoOutput(true);
-        // Use output stream to set the payload of the POST Request
-        OutputStream restOutput = connection.getOutputStream();
+        final String auth = username + ":" + password;
+        String encoding = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.ISO_8859_1));
+        final String authHeader = "Basic " + encoding;
+        // Set the POST Request and all the parameters
+        OkHttpClient client = new OkHttpClient();
+        MediaType mediaType = MediaType.parse("application/json");
+        // JSON Payload
         String jsonPayload = "{ \"querySql\": \"" + sqlString + "\"}";
-        // Execute the Pay load, flush the output stream and close the stream
-        restOutput.write(jsonPayload.getBytes());
-        restOutput.flush();
-        restOutput.close();
+        // POST Request Body
+        RequestBody body = RequestBody.create(mediaType, jsonPayload);
+        // POST Request
+        Request request = new Request.Builder()
+                .url(sqlUrl).addHeader("Authorization", authHeader)
+                .addHeader("accept", "application/json")
+                .addHeader("Ephemeral", "true")
+                .post(body)
+                .build();
+        Call call = client.newCall(request);
+        // Execute the POST Request
+        Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (connection.getResponseCode() != 200) {
-            throw new RuntimeException("Failed : HTTP error code : " + connection.getResponseCode());
+        if (response.code() != 200) {
+            throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
-        // JSON Rerturn
-        BufferedReader br = new BufferedReader(new InputStreamReader((connection.getInputStream())));
-        // Get the runSqlQuery Data.
-        // JSONTokener - Set all the JSON keys as a token from the Json Return string.
-        JSONTokener tokener = new JSONTokener(br);
-        // Set the JSONObject from the JSONTokener
-        JSONObject json = new JSONObject(tokener);
-        log("JSON SQL Return output: " + json.toString());
+        // Check Response Body
+        assert response.body() != null : "The POST Return Body is Empty";
+        // Set the JSONObject from the Response Body
+        JSONObject json = new JSONObject(response.body().string());
+        log("JSON SQL Return output: " + json);
         // Set the JSONArray with the "" token Array List
         JSONArray jsonColumnHeaders = new JSONArray(json.getString("columnHeaders"));
         // Set the JSONArray with the "results" token Array List
@@ -429,48 +446,60 @@ public class ImpactAssessmentProcessor {
         if (!jsonValue.getString(5).equalsIgnoreCase("null")) {
             result.put(jsonColumnHeaders.getString(5), jsonValue.getString(5));
         }
-        // Disconnect the connection
-        connection.disconnect();
-        // Return Data as HashMap
+        // Close the Response body
+        response.close();
+        // Return data as HashMap<String, String>
         return result;
     }
 
+    /**
+     * Method that use the sqlRunner to get the IS PMO Impact Assessment linked Project's EPMO Project Information for the creation of the IS PMO Feature RT
+     * Use POST REST "rest2/sqlRunner/runSqlQuery" to return the data
+     *
+     * @param ppmBaseUrl PPM Base URL for identifying the PPM environment
+     * @param username   PPM User for access to the PPM entities.
+     * @param password   PPM User password
+     * @param restUrl    REST API URL for the method
+     * @param sqlString  IS PMO Impact Assessment request ID
+     * @return SQL Data as HasMap
+     * @throws IOException   IO Exceptions are thrown up to the main class method
+     * @throws JSONException JSON Exceptions are thrown up to the main class method
+     */
     protected HashMap<String, String> getEpmoProjectData(String ppmBaseUrl, String username, String password,
                                                          String restUrl, String sqlString) throws IOException, JSONException {
         // REST API URL
-        URL sqlUrl = new URL(ppmBaseUrl + restUrl);
-        log("POST Request Run SQL Query URL: " + sqlUrl.toString());
+        String sqlUrl = ppmBaseUrl + restUrl;
+        log("POST Request Run SQL Query URL: " + sqlUrl);
         // Encode the Username and Password. Using Admin user to ensure
-        String encoding = Base64.getEncoder()
-                .encodeToString((username + ":" + password).getBytes(StandardCharsets.ISO_8859_1));
-        // Set the connection and all the parameters
-        HttpURLConnection connection = null;
-        connection = (HttpURLConnection) sqlUrl.openConnection();
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Authorization", "basic " + encoding);
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.setRequestProperty("accept", "application/json");
-        connection.setRequestProperty("Ephemeral", "true");
-        connection.setDoOutput(true);
-        // Use output stream to set the payload of the POST Request
-        OutputStream restOutput = connection.getOutputStream();
+        final String auth = username + ":" + password;
+        String encoding = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.ISO_8859_1));
+        final String authHeader = "Basic " + encoding;
+        // Set the POST Request and all the parameters
+        OkHttpClient client = new OkHttpClient();
+        MediaType mediaType = MediaType.parse("application/json");
+        // JSON Payload
         String jsonPayload = "{ \"querySql\": \"" + sqlString + "\"}";
-        // Execute the Pay load, flush the output stream and close the stream
-        restOutput.write(jsonPayload.getBytes());
-        restOutput.flush();
-        restOutput.close();
+        // POST Request Body
+        RequestBody body = RequestBody.create(mediaType, jsonPayload);
+        // POST Request
+        Request request = new Request.Builder()
+                .url(sqlUrl).addHeader("Authorization", authHeader)
+                .addHeader("accept", "application/json")
+                .addHeader("Ephemeral", "true")
+                .post(body)
+                .build();
+        Call call = client.newCall(request);
+        // Execute the POST Request
+        Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (connection.getResponseCode() != 200) {
-            throw new RuntimeException("Failed : HTTP error code : " + connection.getResponseCode());
+        if (response.code() != 200) {
+            throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
-        // JSON Rerturn
-        BufferedReader br = new BufferedReader(new InputStreamReader((connection.getInputStream())));
-        // Get the runSqlQuery Data.
-        // JSONTokener - Set all the JSON keys as a token from the Json Return string.
-        JSONTokener tokener = new JSONTokener(br);
-        // Set the JSONObject from the JSONTokener
-        JSONObject json = new JSONObject(tokener);
-        log("JSON SQL Return output: " + json.toString());
+        // Check Response Body
+        assert response.body() != null : "The POST Return Body is Empty";
+        // Set the JSONObject from the Response Body
+        JSONObject json = new JSONObject(response.body().string());
+        log("JSON SQL Return output: " + json);
         // Set the JSONArray with the "" token Array List
         JSONArray jsonColumnHeaders = new JSONArray(json.getString("columnHeaders"));
         // Set the JSONArray with the "results" token Array List
@@ -494,19 +523,18 @@ public class ImpactAssessmentProcessor {
         result.put(jsonColumnHeaders.getString(2), jsonValue.getString(2));
         // ISPMO_EPMO_TYPE
         result.put(jsonColumnHeaders.getString(3), jsonValue.getString(3));
-        // Disconnect the connection
-        connection.disconnect();
-        // Return Data as HashMap
+        // Close the Response body
+        response.close();
+        // Return data as HashMap<String, String>
         return result;
     }
 
     /**
-     * Method to get the list of Domains that does not have a IS PMO Feature RT
-     * created for the linked IS PMO Impact Assessment RT
+     * Method to get the list of Domains that does not have a IS PMO Feature RT created for the linked IS PMO Impact Assessment RT
      *
-     * @param iaDomians      {@code ArrayList<String>}with Impact Assessment Domains
-     * @param featureDomians {@code ArrayList<String>} with IS PMO Feature Domains
-     * @return
+     * @param iaDomians      mpact Assessment Domains Array List
+     * @param featureDomians IS PMO Feature Domains Array List
+     * @return String Array List with the Domain(s) for creating IS PMO Features
      */
     protected ArrayList<String> getFeatureCreatDomianList(ArrayList<String> iaDomians,
                                                           ArrayList<String> featureDomians) {
@@ -525,7 +553,18 @@ public class ImpactAssessmentProcessor {
         return result;
     }
 
-    private JSONObject setJsonObjectRequestType(String iaRequestId, String iaProjectId, String iaProjectName, String iaIsDomain,
+    /**
+     * Method to generate the JSON Payload for the creation of the IS PMO Feature Request
+     *
+     * @param iaRequestId   IS PMO Impact Assessment Request ID
+     * @param iaProjectName IS PMO Impact Assessment linked IT Project
+     * @param iaIsDomain    Domain identifier for the IS PMO Feature Request Creation
+     * @param itProjectData IS PMO Impact Assessment linked IT Project Data
+     * @param itReleaseData IS PMO Impact Assessment linked IT Project Release Data
+     * @param epmoPrjData   IS PMO Impact Assessment linked IT Project's EPMO Project Data
+     * @return JSON Payload
+     */
+    private JSONObject setJsonObjectRequestType(String iaRequestId, String iaProjectName, String iaIsDomain,
                                                 HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData) {
         // Get the current date and time in "yyyy-MM-dd'T'HH:mm:ss" format" No need to
         // include include the micro seconds and timezone
@@ -885,12 +924,28 @@ public class ImpactAssessmentProcessor {
         return jsonObj;
     }
 
-    protected String createIspmoFeatureRequest(String ppmBaseUrl, String username, String password, String restUrl, String iaRequestId, String iaProjectId, String iaProjectName, String iaIsDomain,
-                                               HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData) throws IOException, JSONException {
+    /**
+     * Method that create the IS PMO Feature per IS Domain
+     *
+     * @param ppmBaseUrl    PPM Base URL for identifying the PPM environment
+     * @param username      PPM User for access to the PPM entities.
+     * @param password      PPM User password
+     * @param restUrl       REST API URL for the method
+     * @param iaRequestId   IS PMO Impact Assessment Request ID
+     * @param iaProjectId   IS PMO Impact Assessment linked IT Project ID
+     * @param iaProjectName IS PMO Impact Assessment linked IT Project
+     * @param itProjectData IS PMO Impact Assessment linked IT Project Data
+     * @param itReleaseData IS PMO Impact Assessment linked IT Project Release Data
+     * @param epmoPrjData   IS PMO Impact Assessment linked IT Project's EPMO Project Data
+     * @return New IS PMO Feature Request ID String
+     * @throws IOException   IO Exceptions are thrown up to the main class method
+     * @throws JSONException JSON Exceptions are thrown up to the main class method
+     */
+    protected String createIspmoFeatureRequest(String ppmBaseUrl, String username, String password, String restUrl, String iaRequestId, String iaProjectId, String iaProjectName, String iaDomain, HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData) throws IOException, JSONException {
 
         // REST API URL
         String requestUrl = ppmBaseUrl + restUrl;
-        System.out.println("POST Request Creating RT URL: " + requestUrl);
+        log("POST Request Creating RT URL: " + requestUrl);
         // Encode the Username and Password. Using Admin user to ensure
         final String auth = username + ":" + password;
         String encoding = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.ISO_8859_1));
@@ -899,9 +954,10 @@ public class ImpactAssessmentProcessor {
         OkHttpClient client = new OkHttpClient();
         MediaType mediaType = MediaType.parse("application/json");
         // JSON Payload
-        String jsonPayload = setJsonObjectRequestType(iaRequestId, iaProjectId, iaProjectName, iaIsDomain, itProjectData, itReleaseData, epmoPrjData).toString();
+        String jsonPayload = setJsonObjectRequestType(iaRequestId, iaProjectName, iaDomain, itProjectData, itReleaseData, epmoPrjData).toString();
+        log("Create IS PMO Feature Pay Load: " + jsonPayload);
         // POST Request Body
-        RequestBody body = RequestBody.create(MediaType.parse("application/json"), jsonPayload);
+        RequestBody body = RequestBody.create(mediaType, jsonPayload);
         // POST Request
         Request request = new Request.Builder()
                 .url(requestUrl).addHeader("Authorization", authHeader)
@@ -919,11 +975,9 @@ public class ImpactAssessmentProcessor {
 
         // JSONTokener - Set all the JSON keys as a token from the Json Return string.
         assert response.body() != null : "The POST Return Body is Empty";
-//        JSONTokener tokener = new JSONTokener(response.body().toString());
-        // Set the JSONObject from the JSONTokener
-//        JSONObject json = new JSONObject(tokener);
+        // Set the JSONObject from the Response Body
         JSONObject json = new JSONObject(response.body().string());
-        log("Successful POST response output Updating RT: " + json.toString());
+        log("Successful POST response output Updating RT: " + json);
         // Disconnect the connection
         response.close();
         // Return String with Request ID
@@ -932,7 +986,8 @@ public class ImpactAssessmentProcessor {
 
     protected void setRequestReference(String ppmBaseUrl, String username, String password, String restUrl, String sourceRequestId, String targetRequestIds, String relationshipCode) throws IOException {
         // Rest URL
-        String putRequestUrl = ppmBaseUrl + restUrl + "/" + sourceRequestId + "/addReference/" + targetRequestIds + "/{refRelName}?refRelName=" + relationshipCode;
+        String putRequestUrl = ppmBaseUrl + restUrl + "/" + sourceRequestId + "/addReference/" + targetRequestIds + "/" + relationshipCode + "?refRelName=" + relationshipCode;
+        log("PUT Request Reference RT URL: " + putRequestUrl);
         // Encode the Username and Password. Using Admin user to ensure
         final String auth = username + ":" + password;
         String encoding = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.ISO_8859_1));
