@@ -56,13 +56,13 @@ public class CreateIsDomainFeatures {
         final String projectId = args[4];
         final String projectName = args[5];
         final String projectRequestType = args[6];
-
-        ImpactAssessmentProcessor iap = new ImpactAssessmentProcessor();
+        // Create new instances of ImpactAssessmentProcessor objects to be used in this class
+        ImpactAssessmentProcessor iaProcessor = new ImpactAssessmentProcessor();
         try {
             log("<<-- Impacted System Domains in Impact Assessment -->>");
             log("<<- Get Impacted System Domains REST SQL Query ->>");
-            ArrayList<String> iaDomainArray = iap.getImpactedSystemDomainsData(ppmBaseUrl, username, password,
-                    SQL_REST_URL, iap.setImpactedSytemsDomainListSql(requestId));
+            ArrayList<String> iaDomainArray = iaProcessor.getImpactedSystemDomainsData(ppmBaseUrl, username, password,
+                    SQL_REST_URL, requestId);
             // Check if Impact Assessment's Impacted Systems has any Domains capture
             // creating IS PMO Feature
             if (iaDomainArray.isEmpty()) {
@@ -71,10 +71,10 @@ public class CreateIsDomainFeatures {
             } else {
                 log("Impacted System Domain(s): " + iaDomainArray);
                 log("<<-- Set PPM Feature Domains Array -->>");
-                ArrayList<String> featureDomainArray = iap.getFeatureDomainsData(ppmBaseUrl, username, password,
-                        SQL_REST_URL, iap.setFeatureDomainListSql(requestId));
+                ArrayList<String> featureDomainArray = iaProcessor.getFeatureDomainsData(ppmBaseUrl, username, password,
+                        SQL_REST_URL, requestId);
                 log("Feature Domain Array List: " + featureDomainArray.toString());
-                ArrayList<String> domainCreationList = iap.getFeatureCreatDomianList(iaDomainArray, featureDomainArray);
+                ArrayList<String> domainCreationList = iaProcessor.getFeatureCreatDomianList(iaDomainArray, featureDomainArray);
                 log("<<-- IS PPM Feature Domains to be Created -->>");
                 // Check if Domain Ctreation List is empty
                 if (domainCreationList.isEmpty()) {
@@ -82,22 +82,22 @@ public class CreateIsDomainFeatures {
                 } else {
                     log("Domains list: " + domainCreationList);
                     log("<<- Get IT Project Data REST SQL Query ->>");
-                    HashMap<String, String> itProjectInformation = iap.getItProjectData(ppmBaseUrl, username, password,
-                            SQL_REST_URL, iap.setItProjectInformationSql(projectId));
+                    HashMap<String, String> itProjectInformation = iaProcessor.getItProjectData(ppmBaseUrl, username, password,
+                            SQL_REST_URL, projectId);
                     log("<<- Get IT Project Release Data REST SQL Query->>");
-                    HashMap<String, String> itProjectReleaseInformation = iap.getItProjectReleaseData(ppmBaseUrl, username, password,
-                            SQL_REST_URL, iap.setItProjectReleaseInformationSql(projectId));
+                    HashMap<String, String> itProjectReleaseInformation = iaProcessor.getItProjectReleaseData(ppmBaseUrl, username, password,
+                            SQL_REST_URL, projectId);
                     HashMap<String, String> epmoProjectInformation = new HashMap<>();
                     if (projectRequestType.equalsIgnoreCase("IS PMO IT-EPMO Project")) {
                         log("<<- Get EPMO Project Data REST SQL Query->>");
-                        epmoProjectInformation = iap.getEpmoProjectData(ppmBaseUrl, username, password,
-                                SQL_REST_URL, iap.setEpmoProjectInformationSql(projectId));
+                        epmoProjectInformation = iaProcessor.getEpmoProjectData(ppmBaseUrl, username, password,
+                                SQL_REST_URL, projectId);
                     }
                     log("<<-- Create IS PMO Feature(s)  -->>");
                     Set<String> stringSet = new HashSet<>();
                     for (String domainList : domainCreationList) {
                         log("Domain List " + domainCreationList.indexOf(domainList) + ": " + domainList);
-                        String newRequestId = iap.createIspmoFeatureRequest(ppmBaseUrl, username, password, REQ_REST_URL, requestId, projectId, projectName, domainList, itProjectInformation, itProjectReleaseInformation, epmoProjectInformation);
+                        String newRequestId = iaProcessor.createIspmoFeatureRequest(ppmBaseUrl, username, password, REQ_REST_URL, requestId, projectId, projectName, domainList, itProjectInformation, itProjectReleaseInformation, epmoProjectInformation);
                         log("Created IS PMO Feature Number:" + newRequestId);
                         // Add the Request IDs to the String Set
                         stringSet.add(newRequestId);
@@ -110,7 +110,7 @@ public class CreateIsDomainFeatures {
                         // Assigning the String Set to a comma separated String
                         String referenceRequestIds = String.join(",", stringSet);
                         // Run methed to add references
-                        iap.setRequestReference(ppmBaseUrl, username, password, REQ_REST_URL, requestId, referenceRequestIds, "CHILD");
+                        iaProcessor.setRequestReference(ppmBaseUrl, username, password, REQ_REST_URL, requestId, referenceRequestIds, "CHILD");
                     }
                 }
 
