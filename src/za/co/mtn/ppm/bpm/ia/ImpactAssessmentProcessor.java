@@ -9,6 +9,7 @@ import org.json.JSONTokener;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -106,7 +107,13 @@ public class ImpactAssessmentProcessor {
         return sql;
     }
 
-    private String setIaImpactedSystemsDetailSql(String reqId) {
+    /**
+     * Method to set the SQL string to be used for extracting the Impacted System Table data from the IS PMO Impact Assessment Request
+     *
+     * @param reqId IS PMO Impact Assessment Request ID
+     * @return SQL String with the created SQL statement
+     */
+    private String setIaImpactedSystemsTableSql(String reqId) {
         // Create the sql string
         String sql = "SELECT nvl(klid.visible_user_data1, 'null') AS oct_workspace, nvl(klid.meaning, 'null') AS is_domain, klis.meaning AS impacted_systems, kte.visible_parameter3 involvement, kte.visible_parameter4 estimate_hrs";
         sql = sql.concat(" FROM kcrt_table_entries kte")
@@ -118,6 +125,12 @@ public class ImpactAssessmentProcessor {
         return sql;
     }
 
+    /**
+     * Method to set the SQL string to be used for extracting the IS PMO Features/IS PMO Testing Feature Request data
+     *
+     * @param prjId IT Project ID
+     * @return SQL String with the created SQL statement
+     */
     private String setFeaturesLinkedToIaSql(String prjId) {
         // Create the sql string
         String sql = "SELECT kr.request_id AS request_id, decode(krt.reference_code, 'IS_PMO_TESTING_FEATURE', krhd.visible_parameter1, krhd.visible_parameter2) AS is_domain";
@@ -126,7 +139,29 @@ public class ImpactAssessmentProcessor {
                 .concat(" INNER JOIN kcrt_request_types krt ON kfpr.request_type_id = krt.request_type_id AND krt.reference_code IN ( 'IS_PMO_FEATURE', 'IS_PMO_TESTING_FEATURE' )")
                 .concat(" INNER JOIN kcrt_requests kr ON kfpr.request_id = kr.request_id")
                 .concat(" INNER JOIN kcrt_req_header_details krhd ON kr.request_id = krhd.request_id");
-        sql = sql.concat(" WHERE pp.project_id = ").concat(prjId);
+        sql = sql.concat(" WHERE kr.status_code IN ( 'NEW', 'IN_PROGRESS' )")
+                .concat(" AND pp.project_id = ").concat(prjId);
+        return sql;
+    }
+
+    /**
+     * Method to set the SQL string to be used for extracting the IT Project Milestones data
+     *
+     * @param prjId IT Project ID
+     * @return SQL String with the created SQL statement
+     */
+    private String setItProjectMilestonesSql(String prjId) {
+        // Create the sql String
+        String sql = "SELECT wti.name, wts.sched_finish_date, wta.act_finish_date, ks.state_name";
+        sql = sql.concat(" FROM pm_work_plans pwp")
+                .concat(" INNER JOIN wp_tasks wt ON pwp.work_plan_id = wt.work_plan_id")
+                .concat(" INNER JOIN wp_task_info wti ON wt.task_info_id = wti.task_info_id AND wti.task_type_code = 'M'")
+                .concat(" INNER JOIN wp_task_schedule wts ON wt.task_schedule_id = wts.task_schedule_id")
+                .concat(" INNER JOIN wp_task_actuals wta ON wt.task_actuals_id = wta.actuals_id")
+                .concat(" INNER JOIN wp_milestones wm ON wt.milestone_id = wm.milestone_id AND wm.major = 'Y'")
+                .concat(" INNER JOIN kdrv_states ks ON wti.status = ks.state_id");
+        sql = sql.concat(" WHERE pwp.entity_type = 'WORK_PLAN'").concat(" AND pwp.project_id = ").concat(prjId);
+        sql = sql.concat(" ORDER BY wt.sequence_number ASC");
         return sql;
     }
 
@@ -155,9 +190,9 @@ public class ImpactAssessmentProcessor {
         // Set the POST Request and all the parameters
         OkHttpClient client = new OkHttpClient().newBuilder()
                 .connectTimeout(20, TimeUnit.SECONDS)
-                .writeTimeout(90,TimeUnit.SECONDS)
-                .readTimeout(90,TimeUnit.SECONDS)
-                .callTimeout(90,TimeUnit.SECONDS).build();
+                .writeTimeout(90, TimeUnit.SECONDS)
+                .readTimeout(90, TimeUnit.SECONDS)
+                .callTimeout(90, TimeUnit.SECONDS).build();
         MediaType mediaType = MediaType.parse("application/json");
         // JSON Payload
         String jsonPayload = "{ \"querySql\": \"" + setImpactedSytemsDomainListSql(iaRequestId) + "\"}";
@@ -228,9 +263,9 @@ public class ImpactAssessmentProcessor {
         // Set the POST Request and all the parameters
         OkHttpClient client = new OkHttpClient().newBuilder()
                 .connectTimeout(20, TimeUnit.SECONDS)
-                .writeTimeout(90,TimeUnit.SECONDS)
-                .readTimeout(90,TimeUnit.SECONDS)
-                .callTimeout(90,TimeUnit.SECONDS).build();
+                .writeTimeout(90, TimeUnit.SECONDS)
+                .readTimeout(90, TimeUnit.SECONDS)
+                .callTimeout(90, TimeUnit.SECONDS).build();
         MediaType mediaType = MediaType.parse("application/json");
         // JSON Payload
         String jsonPayload = "{ \"querySql\": \"" + setFeatureDomainListSql(iaRequestId) + "\"}";
@@ -301,9 +336,9 @@ public class ImpactAssessmentProcessor {
         // Set the POST Request and all the parameters
         OkHttpClient client = new OkHttpClient().newBuilder()
                 .connectTimeout(20, TimeUnit.SECONDS)
-                .writeTimeout(90,TimeUnit.SECONDS)
-                .readTimeout(90,TimeUnit.SECONDS)
-                .callTimeout(90,TimeUnit.SECONDS).build();
+                .writeTimeout(90, TimeUnit.SECONDS)
+                .readTimeout(90, TimeUnit.SECONDS)
+                .callTimeout(90, TimeUnit.SECONDS).build();
         MediaType mediaType = MediaType.parse("application/json");
         // JSON Payload
         String jsonPayload = "{ \"querySql\": \"" + setItProjectInformationSql(itProjectId) + "\"}";
@@ -421,9 +456,9 @@ public class ImpactAssessmentProcessor {
         // Set the POST Request and all the parameters
         OkHttpClient client = new OkHttpClient().newBuilder()
                 .connectTimeout(20, TimeUnit.SECONDS)
-                .writeTimeout(90,TimeUnit.SECONDS)
-                .readTimeout(90,TimeUnit.SECONDS)
-                .callTimeout(90,TimeUnit.SECONDS).build();
+                .writeTimeout(90, TimeUnit.SECONDS)
+                .readTimeout(90, TimeUnit.SECONDS)
+                .callTimeout(90, TimeUnit.SECONDS).build();
         MediaType mediaType = MediaType.parse("application/json");
         // JSON Payload
         String jsonPayload = "{ \"querySql\": \"" + setItProjectReleaseInformationSql(itProjectId) + "\"}";
@@ -518,9 +553,9 @@ public class ImpactAssessmentProcessor {
         // Set the POST Request and all the parameters
         OkHttpClient client = new OkHttpClient().newBuilder()
                 .connectTimeout(20, TimeUnit.SECONDS)
-                .writeTimeout(90,TimeUnit.SECONDS)
-                .readTimeout(90,TimeUnit.SECONDS)
-                .callTimeout(90,TimeUnit.SECONDS).build();
+                .writeTimeout(90, TimeUnit.SECONDS)
+                .readTimeout(90, TimeUnit.SECONDS)
+                .callTimeout(90, TimeUnit.SECONDS).build();
         MediaType mediaType = MediaType.parse("application/json");
         // JSON Payload
         String jsonPayload = "{ \"querySql\": \"" + setEpmoProjectInformationSql(itProjectId) + "\"}";
@@ -574,8 +609,20 @@ public class ImpactAssessmentProcessor {
         return result;
     }
 
-    protected ArrayList<ImpactedSystemValues> getIaImpactedSystemsDetailData(String ppmBaseUrl, String username, String password,
-                                                                             String restUrl, String iaRequestId) throws IOException, JSONException {
+    /**
+     * Method to get the Impacted System Table data from the IS PMO Impact Assessment Request
+     *
+     * @param ppmBaseUrl  PPM Base URL for identifying the PPM environment
+     * @param username    PPM User for access to the PPM entities.
+     * @param password    PPM User password
+     * @param restUrl     REST API URL for the method
+     * @param iaRequestId IS PMO Impact Assessment Request
+     * @return ArrayList Object with Impacted System Table data
+     * @throws IOException   IO Exceptions are thrown up to the main class method
+     * @throws JSONException JSON Exceptions are thrown up to the main class method
+     */
+    protected ArrayList<ImpactedSystemValues> getIaImpactedSystemsTableData(String ppmBaseUrl, String username, String password,
+                                                                            String restUrl, String iaRequestId) throws IOException, JSONException {
         // REST API URL
         String sqlUrl = ppmBaseUrl + restUrl;
         log("POST Request Run SQL Query URL: " + sqlUrl);
@@ -586,12 +633,12 @@ public class ImpactAssessmentProcessor {
         // Set the POST Request and all the parameters
         OkHttpClient client = new OkHttpClient().newBuilder()
                 .connectTimeout(20, TimeUnit.SECONDS)
-                .writeTimeout(90,TimeUnit.SECONDS)
-                .readTimeout(90,TimeUnit.SECONDS)
-                .callTimeout(90,TimeUnit.SECONDS).build();
+                .writeTimeout(90, TimeUnit.SECONDS)
+                .readTimeout(90, TimeUnit.SECONDS)
+                .callTimeout(90, TimeUnit.SECONDS).build();
         MediaType mediaType = MediaType.parse("application/json");
         // JSON Payload
-        String jsonPayload = "{ \"querySql\": \"" + setIaImpactedSystemsDetailSql(iaRequestId) + "\"}";
+        String jsonPayload = "{ \"querySql\": \"" + setIaImpactedSystemsTableSql(iaRequestId) + "\"}";
         // POST Request Body
         RequestBody body = RequestBody.create(mediaType, jsonPayload);
         // POST Request
@@ -634,6 +681,18 @@ public class ImpactAssessmentProcessor {
         return result;
     }
 
+    /**
+     * Method to get the IS PMO Features and IS PMO Testing Features linked to the IT Project
+     *
+     * @param ppmBaseUrl  PPM Base URL for identifying the PPM environment
+     * @param username    PPM User for access to the PPM entities.
+     * @param password    PPM User password
+     * @param restUrl     REST API URL for the method
+     * @param iaProjectId IT Project ID
+     * @return ArrayList Object with IS PMO Features and IS PMO Testing Features
+     * @throws IOException   IO Exceptions are thrown up to the main class method
+     * @throws JSONException JSON Exceptions are thrown up to the main class method
+     */
     protected ArrayList<FeatureValues> getFeaturesLinkedToIaData(String ppmBaseUrl, String username, String password,
                                                                  String restUrl, String iaProjectId) throws IOException, JSONException {
         // REST API URL
@@ -646,9 +705,9 @@ public class ImpactAssessmentProcessor {
         // Set the POST Request and all the parameters
         OkHttpClient client = new OkHttpClient().newBuilder()
                 .connectTimeout(20, TimeUnit.SECONDS)
-                .writeTimeout(90,TimeUnit.SECONDS)
-                .readTimeout(90,TimeUnit.SECONDS)
-                .callTimeout(90,TimeUnit.SECONDS).build();
+                .writeTimeout(90, TimeUnit.SECONDS)
+                .readTimeout(90, TimeUnit.SECONDS)
+                .callTimeout(90, TimeUnit.SECONDS).build();
         MediaType mediaType = MediaType.parse("application/json");
         // JSON Payload
         String jsonPayload = "{ \"querySql\": \"" + setFeaturesLinkedToIaSql(iaProjectId) + "\"}";
@@ -686,6 +745,78 @@ public class ImpactAssessmentProcessor {
                 // Set the JSONArray with the "results" token Array List
                 JSONArray jsonValue = new JSONArray(jsonVal.getString("values"));
                 result.add(new FeatureValues(jsonValue.getString(0), jsonValue.getString(1)));
+            }
+        }
+
+        response.close();
+        // Return data as HashMap<String, String>
+        return result;
+    }
+
+    /**
+     * Method to get the IT Project Milestone information
+     *
+     * @param ppmBaseUrl  PPM Base URL for identifying the PPM environment
+     * @param username    PPM User for access to the PPM entities.
+     * @param password    PPM User password
+     * @param restUrl     REST API URL for the method
+     * @param iaProjectId IT Project ID
+     * @return ArrayList Object with IT Project Milestone data
+     * @throws IOException   IO Exceptions are thrown up to the main class method
+     * @throws JSONException JSON Exceptions are thrown up to the main class method
+     */
+    protected ArrayList<ProjectMilestoneValues> getItProjectMilestoneData(String ppmBaseUrl, String username, String password,
+                                                                          String restUrl, String iaProjectId) throws IOException, JSONException {
+        // REST API URL
+        String sqlUrl = ppmBaseUrl + restUrl;
+        log("POST Request Run SQL Query URL: " + sqlUrl);
+        // Encode the Username and Password. Using Admin user to ensure
+        final String auth = username + ":" + password;
+        String encoding = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.ISO_8859_1));
+        final String authHeader = "Basic " + encoding;
+        // Set the POST Request and all the parameters
+        OkHttpClient client = new OkHttpClient().newBuilder()
+                .connectTimeout(20, TimeUnit.SECONDS)
+                .writeTimeout(90, TimeUnit.SECONDS)
+                .readTimeout(90, TimeUnit.SECONDS)
+                .callTimeout(90, TimeUnit.SECONDS).build();
+        MediaType mediaType = MediaType.parse("application/json");
+        // JSON Payload
+        String jsonPayload = "{ \"querySql\": \"" + setItProjectMilestonesSql(iaProjectId) + "\"}";
+        // POST Request Body
+        RequestBody body = RequestBody.create(mediaType, jsonPayload);
+        // POST Request
+        Request request = new Request.Builder()
+                .url(sqlUrl).addHeader("Authorization", authHeader)
+                .addHeader("accept", "application/json")
+                .addHeader("Ephemeral", "true")
+                .post(body)
+                .build();
+        Call call = client.newCall(request);
+        // Execute the POST Request
+        Response response = call.execute();
+        // Get the Response from server for the GET REST Request done.
+        if (response.code() != 200) {
+            throw new RuntimeException("Failed : HTTP error code : " + response.code());
+        }
+        // Check Response Body
+        assert response.body() != null : "The POST Return Body is Empty";
+        // Set the JSONObject from the Response Body
+        JSONObject json = new JSONObject(response.body().string());
+        log("JSON SQL Return output: " + json);
+        // Set the JSONArray with the "results" token Array List
+        JSONArray jsonResults = new JSONArray(json.getString("results"));
+        ArrayList<ProjectMilestoneValues> result = new ArrayList<>();
+        if (!jsonResults.isEmpty()) {
+            // Get the "values" token Array from the "results" token Array
+            JSONArray jsonValues = new JSONArray(jsonResults.toString());
+            for (int i = 0; i < jsonValues.length(); i++) {
+                // Convert to an JSONObject to get the data Array
+                JSONTokener tokenerVal = new JSONTokener(jsonValues.get(i).toString());
+                JSONObject jsonVal = new JSONObject(tokenerVal);
+                // Set the JSONArray with the "results" token Array List
+                JSONArray jsonValue = new JSONArray(jsonVal.getString("values"));
+                result.add(new ProjectMilestoneValues(jsonValue.get(0).toString(), jsonValue.get(1).toString(), jsonValue.get(2).toString(), jsonValue.get(3).toString()));
             }
         }
 
@@ -1153,6 +1284,17 @@ public class ImpactAssessmentProcessor {
         return json.getString("id");
     }
 
+    /**
+     * Method to set the reference between request types with relationship information
+     *
+     * @param ppmBaseUrl       PPM Base URL for identifying the PPM environment
+     * @param username         PPM User for access to the PPM entities.
+     * @param password         PPM User password
+     * @param sourceRequestId  IS PMO Impact Assessment Request ID
+     * @param targetRequestIds IS PMO Feature Request IDs
+     * @param relationshipCode Relationship indications
+     * @throws IOException IO Exceptions are thrown up to the main class method
+     */
     protected void setRequestReference(String ppmBaseUrl, String username, String password, String restUrl, String sourceRequestId, String targetRequestIds, String relationshipCode) throws IOException {
         // Rest URL
         String putRequestUrl = ppmBaseUrl + restUrl + "/" + sourceRequestId + "/addReference/" + targetRequestIds + "/" + relationshipCode + "?refRelName=" + relationshipCode;
@@ -1184,7 +1326,15 @@ public class ImpactAssessmentProcessor {
         response.close();
     }
 
-    private JSONObject setJsonObjectUpdateFeatureRequestTypeImpactedSystemFields(ArrayList<ImpactedSystemValues> impactedSystemsObjArray) {
+    /**
+     * Method to generate the JSON Payload for the updating of the IS PMO Feature or IS PMO Testing Feature Request
+     *
+     * @param impactedSystemsObjArray    Impacted System Table values for the Domain
+     * @param allImpactedSystemsObjArray All Impacted System Table data
+     * @param itProjectMilestoneObjArray IT Project Major Milestone data
+     * @return Json Object with the payload
+     */
+    private JSONObject setJsonObjectUpdateFeatureRequestTypeImpactedSystemFields(ArrayList<ImpactedSystemValues> impactedSystemsObjArray, ArrayList<ImpactedSystemValues> allImpactedSystemsObjArray, ArrayList<ProjectMilestoneValues> itProjectMilestoneObjArray) throws ParseException {
         // Get the current date and time in "yyyy-MM-dd'T'HH:mm:ss" format" No need to
         // include include the micro seconds and timezone
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -1215,12 +1365,30 @@ public class ImpactAssessmentProcessor {
         String involvementString = setDomainInvolvementHtml(impactedSystemsObjArray);
         stringValueInvolvementArray.put(involvementString);
         tokenInvolvementObj.put("stringValue", stringValueInvolvementArray);
+        // RT Token: IS_DOMAIN_INVOLVEMENTS
+        JSONObject tokenAllInvolvementObj = new JSONObject();
+        tokenAllInvolvementObj.put("token", "REQD.IS_DOMAIN_INVOLVEMENTS");
+        // Set the stringValue Array for the Involvement
+        JSONArray stringValueAllInvolvementArray = new JSONArray();
+        String allInvolvementString = setDomainInvolvementHtml(allImpactedSystemsObjArray);
+        stringValueAllInvolvementArray.put(allInvolvementString);
+        tokenAllInvolvementObj.put("stringValue", stringValueAllInvolvementArray);
+        // RT Token: ISPMO_MILESTONES
+        JSONObject tokenProjectMilestoneObj = new JSONObject();
+        tokenProjectMilestoneObj.put("token", "REQD.ISPMO_MILESTONES");
+        // Set the stringValue Array for the Involvement
+        JSONArray stringValueProjectMilestoneArray = new JSONArray();
+        String projectMilestoneString = setProjectMilestoneHtml(itProjectMilestoneObjArray);
+        stringValueProjectMilestoneArray.put(projectMilestoneString);
+        tokenProjectMilestoneObj.put("stringValue", stringValueProjectMilestoneArray);
         // Set the Field Array for the IS PMO Feature Request dynamically depending on the data
         JSONArray fieldArray = new JSONArray();
         fieldArray.put(tokensLastUpdateDateObj);
         fieldArray.put(tokenEntityLastUpdateDateObj);
         fieldArray.put(tokenImpactedSystemsObj);
         fieldArray.put(tokenInvolvementObj);
+        fieldArray.put(tokenAllInvolvementObj);
+        fieldArray.put(tokenProjectMilestoneObj);
         // Set the Field Object
         JSONObject fieldObj = new JSONObject();
         fieldObj.put("field", fieldArray);
@@ -1230,7 +1398,24 @@ public class ImpactAssessmentProcessor {
         return jsonObj;
     }
 
-    protected void updateFeatureRequestTypeImpactedSystemFields(String ppmBaseUrl, String username, String password, String restUrl, String featureReqId, ArrayList<ImpactedSystemValues> isValuesObjArray) throws IOException, JSONException {
+    /**
+     * Method to update the following fields in the IS PMO Feature and IS PMO Testing Feature Request Types:
+     * - Impacted Systems
+     * - Involvement per Impacted System
+     * - Involvement Across All Delivery Areas (IS Domains)
+     * - IT Project Milestones
+     *
+     * @param ppmBaseUrl          PPM Base URL for identifying the PPM environment
+     * @param username            PPM User for access to the PPM entities.
+     * @param password            PPM User password
+     * @param restUrl             REST API URL for the method
+     * @param featureReqId        IS PMO Feature or IS PMO Testing Feature Request Id
+     * @param isValuesObjArray    Impacted System Table values for the Domain
+     * @param isAllValuesObjArray All Impacted System Table data
+     * @throws IOException   IO Exceptions are thrown up to the main class method
+     * @throws JSONException JSON Exceptions are thrown up to the main class method
+     */
+    protected void updateFeatureRequestTypeImpactedSystemFields(String ppmBaseUrl, String username, String password, String restUrl, String featureReqId, ArrayList<ImpactedSystemValues> isValuesObjArray, ArrayList<ImpactedSystemValues> isAllValuesObjArray, ArrayList<ProjectMilestoneValues> prjMilestones) throws IOException, JSONException, ParseException {
 
         // REST API URL
         String requestUrl = ppmBaseUrl + restUrl + "/" + featureReqId;
@@ -1239,7 +1424,7 @@ public class ImpactAssessmentProcessor {
         final String auth = username + ":" + password;
         String encoding = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.ISO_8859_1));
         final String authHeader = "Basic " + encoding;
-        // Set the POST RRequest and all the parameters
+        // Set the PUT Request with all the required parameters and timeouts
         OkHttpClient client = new OkHttpClient().newBuilder()
                 .connectTimeout(20, TimeUnit.SECONDS)
                 .writeTimeout(90, TimeUnit.SECONDS)
@@ -1247,7 +1432,7 @@ public class ImpactAssessmentProcessor {
                 .callTimeout(90, TimeUnit.SECONDS).build();
         MediaType mediaType = MediaType.parse("application/json");
         // JSON Payload
-        String jsonPayload = setJsonObjectUpdateFeatureRequestTypeImpactedSystemFields(isValuesObjArray).toString();
+        String jsonPayload = setJsonObjectUpdateFeatureRequestTypeImpactedSystemFields(isValuesObjArray, isAllValuesObjArray, prjMilestones).toString();
         log("Create IS PMO Feature Pay Load: " + jsonPayload);
         // POST Request Body
         RequestBody body = RequestBody.create(mediaType, jsonPayload);
@@ -1297,8 +1482,15 @@ public class ImpactAssessmentProcessor {
         return result;
     }
 
+    /**
+     * Method to set the HTML for the Involvement fields in Request Types: IS PMO Feature and IS PMO Testing Feature
+     *
+     * @param domainInvolvementObj Impacted Systems value array list
+     * @return HTML String
+     */
     private String setDomainInvolvementHtml(ArrayList<ImpactedSystemValues> domainInvolvementObj) {
         String result = null;
+        // Build the string with HTML tags for a table
         if (!domainInvolvementObj.isEmpty()) {
 
             result = "<table style=\"border: 1px solid black; border-collapse: collapse; width: 98%;\">";
@@ -1316,6 +1508,55 @@ public class ImpactAssessmentProcessor {
                 result = result.concat("<td>").concat(impactedSystemValues.getInvolvement()).concat("</td>");
                 // Effort Estimation (Hours)
                 result = result.concat("<td>").concat(impactedSystemValues.getEstimateHours()).concat("</td>");
+                result = result.concat("</tr>");
+                // <<-- Testing multiple rows when field is not edible-->>
+            }
+            result = result.concat("</table>");
+        }
+        return result;
+    }
+
+    /**
+     * Method to set the HTML for the IT Project Milestones
+     *
+     * @param projectMilestoneObj IT Project Major Milestone value array list
+     * @return HTML string
+     */
+    private String setProjectMilestoneHtml(ArrayList<ProjectMilestoneValues> projectMilestoneObj) throws ParseException {
+        String result = null;
+        // Format the date for display in HTML table
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+        // Build the string with HTML tags for a table
+        if (!projectMilestoneObj.isEmpty()) {
+
+            result = "<table style=\"border: 1px solid black; border-collapse: collapse; width: 98%;\">";
+            result = result.concat("<tr>");
+            result = result.concat("<td style=\"font-weight: bold; width: 40%;\">Milestone</td>");
+            result = result.concat("<td style=\"font-weight: bold; width: 20%;\">Scheduled Finish</td>");
+            result = result.concat("<td style=\"font-weight: bold; width: 20%;\">Actual Finish</td>");
+            result = result.concat("<td style=\"font-weight: bold;\">Status</td>");
+            result = result.concat("</tr>");
+            // Iterate through the Domain Involvement Object
+            for (ProjectMilestoneValues projectMilestoneValues : projectMilestoneObj) {
+                result = result.concat("<tr>");
+                // Milestone
+                result = result.concat("<td>").concat(projectMilestoneValues.getMilestoneTaskName()).concat("</td>");
+                // Scheduled Finish
+                String milestoneScheduledFinishDate = projectMilestoneValues.getMilestoneScheduledFinishDate();
+                if (milestoneScheduledFinishDate.equalsIgnoreCase("null")) {
+                    result = result.concat("<td>").concat("-").concat("</td>");
+                } else {
+                    result = result.concat("<td>").concat(formatter.parse(milestoneScheduledFinishDate).toString()).concat("</td>");
+                }
+                // Actual Finish
+                String milestoneActualFinishDate = projectMilestoneValues.getMilestoneActualFinishDate();
+                if (milestoneActualFinishDate.equalsIgnoreCase("null")) {
+                    result = result.concat("<td>").concat("-").concat("</td>");
+                } else {
+                    result = result.concat("<td>").concat(formatter.parse(milestoneActualFinishDate).toString()).concat("</td>");
+                }
+                // Status
+                result = result.concat("<td>").concat(projectMilestoneValues.getMilestoneTaskStatus()).concat("</td>");
                 result = result.concat("</tr>");
                 // <<-- Testing multiple rows when field is not edible-->>
             }

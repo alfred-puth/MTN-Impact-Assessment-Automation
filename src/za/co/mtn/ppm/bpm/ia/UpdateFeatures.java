@@ -1,13 +1,27 @@
 package za.co.mtn.ppm.bpm.ia;
 
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.ArrayList;
 
+/**
+ * Class that updates IS PMO Feature and IS PMO Testing Feature Requests from the Impacted System table and IT Project Milestones.
+ */
 public class UpdateFeatures {
     // Variable to set the REST API URL
     private static final String REQ_REST_URL = "rest2/dm/requests";
     private static final String SQL_REST_URL = "rest2/sqlRunner/runSqlQuery";
 
+    /**
+     * Main method for the class
+     *
+     * @param args The following list of Arguments are required:
+     *             ENV_BASE_URL: args[0] (PPM Base URL)
+     *             REST_USERNAME: args[1] (PPM System User - ppmsysuser)
+     *             REST_USER_PASSWORD: args[2] (PPM System User Password)
+     *             IA_REQUEST_ID: args[3] (IS PMO Impact Assessment No)
+     *             PROJECT_ID: args[4] (IT Project ID linked to the IS PMO Impact Assessment Request)
+     */
     public static void main(String[] args) {
         // Verify that all Command Line Arguments has been submitted
 //		log("Arguments length: " + args.length);
@@ -38,33 +52,49 @@ public class UpdateFeatures {
         try {
             log("<<-- Update PPM Feature Fields from IS PMO Impact Assessment -->>");
             log("<<- Get Impacted System Systems REST SQL Query ->>");
-            ArrayList<ImpactedSystemValues> impactedSystemsData = iaProcessor.getIaImpactedSystemsDetailData(ppmBaseUrl, username, password, SQL_REST_URL, requestId);
+            // Assign Impacted Systems table data to the ArrayList Object with the Impacted Systems table data
+            ArrayList<ImpactedSystemValues> impactedSystemsData = iaProcessor.getIaImpactedSystemsTableData(ppmBaseUrl, username, password, SQL_REST_URL, requestId);
+            // Check if Impacted Systems table is empty
             if (impactedSystemsData.isEmpty()) {
                 log("No Impacted Systems captured in the IS PMO Impact Assessment table component.");
             } else {
                 log("<<- Get PPM Features REST SQL Query ->>");
+                // Assign PPM Features data to the ArrayList Object with the linked PPM Features
                 ArrayList<FeatureValues> featuresLinkedToIaData = iaProcessor.getFeaturesLinkedToIaData(ppmBaseUrl, username, password, SQL_REST_URL, projectId);
-                log("<<-- Generate the JSON for the PUT Request -->>");
+                log("<<- Get IT Project Major Milestone REST SQL Query ->>");
+                ArrayList<ProjectMilestoneValues> itProjectMajorMilestoneData = iaProcessor.getItProjectMilestoneData(ppmBaseUrl, username, password, SQL_REST_URL, projectId);
+                log("<<-- Start Update PUT Request (IS PMO Feature(s) or IS PMO Testing Feature) -->>");
+                // Check if the ArrayList Object with the linked PPM Features is empty
                 if (!featuresLinkedToIaData.isEmpty()) {
+                    // Iterate through the IS PMO Feature/IS PMO Testing Feature requests
                     for (FeatureValues featuresLinkedToIa : featuresLinkedToIaData) {
+                        // Assign the PPM Feature, IS Domain to string variable
                         String featureDomain = featuresLinkedToIa.getFeature_is_Domain();
                         log("Feature Number: " + featuresLinkedToIa.getFeature_request_id() + " and IS Domain: " + featureDomain);
-                        // Variable to store the Impacted System Values for the domain
-                        ArrayList<ImpactedSystemValues> domainImpactedSystemValues = new ArrayList<>();
-                        // Iterate through the Impacted Systems for a domain
-                        for (ImpactedSystemValues impactedSystems : impactedSystemsData) {
-                            if (impactedSystems.getIsDomain().equalsIgnoreCase(featureDomain)) {
-                                domainImpactedSystemValues.add(new ImpactedSystemValues(impactedSystems.getOctaneWorkspace(), impactedSystems.getIsDomain(), impactedSystems.getImpactedSystem(), impactedSystems.getInvolvement(), impactedSystems.getEstimateHours()));
+                        // Check Feature Domain equal to "Test Automation"
+                        if (featureDomain.equalsIgnoreCase("Test Automation")) {
+                            // Update the IS PMO Testing Feature Request Type
+                            iaProcessor.updateFeatureRequestTypeImpactedSystemFields(ppmBaseUrl, username, password, REQ_REST_URL, featuresLinkedToIa.getFeature_request_id(), impactedSystemsData, impactedSystemsData, itProjectMajorMilestoneData);
+                        } else {
+                            // IS Domains no equal to "Test Automation"
+                            // Variable to store the Impacted System Values for the domain
+                            ArrayList<ImpactedSystemValues> domainImpactedSystemValues = new ArrayList<>();
+                            // Iterate through the Impacted Systems for a domain
+                            for (ImpactedSystemValues impactedSystems : impactedSystemsData) {
+                                // Compare the Domain values and add to the variable
+                                if (impactedSystems.getIsDomain().equalsIgnoreCase(featureDomain)) {
+                                    domainImpactedSystemValues.add(new ImpactedSystemValues(impactedSystems.getOctaneWorkspace(), impactedSystems.getIsDomain(), impactedSystems.getImpactedSystem(), impactedSystems.getInvolvement(), impactedSystems.getEstimateHours()));
+                                }
                             }
+                            // Update the IS PMO Feature Request Type
+                            iaProcessor.updateFeatureRequestTypeImpactedSystemFields(ppmBaseUrl, username, password, REQ_REST_URL, featuresLinkedToIa.getFeature_request_id(), domainImpactedSystemValues, impactedSystemsData, itProjectMajorMilestoneData);
                         }
-                        // Update the PPM Feature Request Type
-                        iaProcessor.updateFeatureRequestTypeImpactedSystemFields(ppmBaseUrl,username,password,REQ_REST_URL,featuresLinkedToIa.getFeature_request_id(),domainImpactedSystemValues);
                     }
                 }
-
+                log("<<-- End Update PUT Request (IS PMO Feature(s) or IS PMO Testing Feature) -->>");
 
             }
-        } catch (IOException e) {
+        } catch (IOException | ParseException e) {
             throw new RuntimeException(e);
         }
     }
