@@ -71,6 +71,7 @@ public class UpdateFeatures {
                         // Assign the PPM Feature, IS Domain to string variable
                         String featureDomain = featuresLinkedToIa.getFeature_is_Domain();
                         log("Feature Number: " + featuresLinkedToIa.getFeature_request_id() + " and IS Domain: " + featureDomain);
+                        log("<p style=\"float: left;\">");
                         // Check Feature Domain equal to "Test Automation"
                         if (featureDomain.equalsIgnoreCase("Test Automation")) {
                             // Update the IS PMO Testing Feature Request Type
@@ -89,6 +90,7 @@ public class UpdateFeatures {
                             // Update the IS PMO Feature Request Type
                             iaProcessor.updateFeatureRequestTypeImpactedSystemFields(ppmBaseUrl, username, password, REQ_REST_URL, featuresLinkedToIa.getFeature_request_id(), domainImpactedSystemValues, impactedSystemsData, itProjectMajorMilestoneData);
                         }
+                        log("</p><br>");
                     }
                 }
                 log("<<-- End Update PUT Request (IS PMO Feature(s) or IS PMO Testing Feature) -->>");
