@@ -1318,7 +1318,7 @@ public class ImpactAssessmentProcessor {
                 .put(body)
                 .build();
         Response response = client.newCall(request).execute();
-        if (!response.isSuccessful()) {
+        if (response.isSuccessful()) {
             log("Request Reference PUT Response: References Successfully Added");
         } else {
             throw new RuntimeException("Failed : HTTP error code : " + response.code());
