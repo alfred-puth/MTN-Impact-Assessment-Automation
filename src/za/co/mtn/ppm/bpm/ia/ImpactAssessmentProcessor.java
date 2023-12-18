@@ -133,12 +133,13 @@ public class ImpactAssessmentProcessor {
      */
     private String setFeaturesLinkedToIaSql(String prjId) {
         // Create the sql string
-        String sql = "SELECT kr.request_id AS request_id, decode(krt.reference_code, 'IS_PMO_TESTING_FEATURE', krhd.visible_parameter1, krhd.visible_parameter2) AS is_domain";
+        String sql = "SELECT kr.request_id AS request_id, decode(krt.reference_code, 'IS_PMO_TESTING_FEATURE', krhd.visible_parameter1, krhd.visible_parameter2) AS is_domain, kfai.agile_entity_url";
         sql = sql.concat(" FROM pm_projects pp")
                 .concat(" INNER JOIN kcrt_fg_master_proj_ref kfpr ON pp.project_id = kfpr.ref_master_project_id")
                 .concat(" INNER JOIN kcrt_request_types krt ON kfpr.request_type_id = krt.request_type_id AND krt.reference_code IN ( 'IS_PMO_FEATURE', 'IS_PMO_TESTING_FEATURE' )")
                 .concat(" INNER JOIN kcrt_requests kr ON kfpr.request_id = kr.request_id")
-                .concat(" INNER JOIN kcrt_req_header_details krhd ON kr.request_id = krhd.request_id");
+                .concat(" INNER JOIN kcrt_req_header_details krhd ON kr.request_id = krhd.request_id")
+                .concat(" INNER JOIN kcrt_fg_agile_info kfai ON kfpr.request_id = kfai.request_id");
         sql = sql.concat(" WHERE kr.status_code IN ( 'NEW', 'IN_PROGRESS' )")
                 .concat(" AND pp.project_id = ").concat(prjId);
         return sql;
@@ -209,7 +210,7 @@ public class ImpactAssessmentProcessor {
         // Execute the POST Request
         Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (response.code() != 200) {
+        if (!response.isSuccessful()) {
             throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
         // Check Response Body
@@ -282,7 +283,7 @@ public class ImpactAssessmentProcessor {
         // Execute the POST Request
         Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (response.code() != 200) {
+        if (!response.isSuccessful()) {
             throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
         // Check Response Body
@@ -355,7 +356,7 @@ public class ImpactAssessmentProcessor {
         // Execute the POST Request
         Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (response.code() != 200) {
+        if (!response.isSuccessful()) {
             throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
         // Check Response Body
@@ -475,7 +476,7 @@ public class ImpactAssessmentProcessor {
         // Execute the POST Request
         Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (response.code() != 200) {
+        if (!response.isSuccessful()) {
             throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
         // Check Response Body
@@ -572,7 +573,7 @@ public class ImpactAssessmentProcessor {
         // Execute the POST Request
         Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (response.code() != 200) {
+        if (!response.isSuccessful()) {
             throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
         // Check Response Body
@@ -652,7 +653,7 @@ public class ImpactAssessmentProcessor {
         // Execute the POST Request
         Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (response.code() != 200) {
+        if (!response.isSuccessful()) {
             throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
         // Check Response Body
@@ -724,7 +725,7 @@ public class ImpactAssessmentProcessor {
         // Execute the POST Request
         Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (response.code() != 200) {
+        if (!response.isSuccessful()) {
             throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
         // Check Response Body
@@ -744,7 +745,7 @@ public class ImpactAssessmentProcessor {
                 JSONObject jsonVal = new JSONObject(tokenerVal);
                 // Set the JSONArray with the "results" token Array List
                 JSONArray jsonValue = new JSONArray(jsonVal.getString("values"));
-                result.add(new FeatureValues(jsonValue.getString(0), jsonValue.getString(1)));
+                result.add(new FeatureValues(jsonValue.getString(0), jsonValue.getString(1), jsonValue.get(2).toString()));
             }
         }
 
@@ -796,7 +797,7 @@ public class ImpactAssessmentProcessor {
         // Execute the POST Request
         Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (response.code() != 200) {
+        if (!response.isSuccessful()) {
             throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
         // Check Response Body
@@ -1269,7 +1270,7 @@ public class ImpactAssessmentProcessor {
         // Execute the POST Request
         Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (response.code() != 200) {
+        if (!response.isSuccessful()) {
             throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
 
@@ -1317,7 +1318,7 @@ public class ImpactAssessmentProcessor {
                 .put(body)
                 .build();
         Response response = client.newCall(request).execute();
-        if (response.code() == 200) {
+        if (!response.isSuccessful()) {
             log("Request Reference PUT Response: References Successfully Added");
         } else {
             throw new RuntimeException("Failed : HTTP error code : " + response.code());
@@ -1447,7 +1448,7 @@ public class ImpactAssessmentProcessor {
         // Execute the POST Request
         Response response = call.execute();
         // Get the Response from server for the GET REST Request done.
-        if (response.code() != 200) {
+        if (!response.isSuccessful()) {
             throw new RuntimeException("Failed : HTTP error code : " + response.code());
         }
 

@@ -1,5 +1,7 @@
 package za.co.mtn.ppm.bpm.ia;
 
+import za.co.mtn.ppm.bpm.octane.OctaneFeatureOoProcessor;
+
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -25,14 +27,14 @@ public class UpdateFeatures {
     public static void main(String[] args) {
         // Verify that all Command Line Arguments has been submitted
 //		log("Arguments length: " + args.length);
-        if (args.length < 3) {
+        if (args.length < 5) {
             log("The Class Command Line Arguments is incorrect!");
             printCommandLineArguments();
             System.exit(1);
         }
         // Assign parameters to variables for usage in methods
         log("**** Class Command Line Arguments****");
-        // Base URL for PPM - Token: ENV_BASE_URL
+        // Base URL for PPM
         log("ENV_BASE_URL: " + args[0]);
         // REST API Username
         log("REST_USERNAME: " + args[1]);
@@ -40,6 +42,8 @@ public class UpdateFeatures {
         log("IA_REQUEST_ID: " + args[3]);
         // IT Project ID
         log("IT_PROJECT_ID: " + args[4]);
+        // Base URL for OO
+        log("OO_BASE_URL: " + args[5]);
         log("**** End of Class Command Line Arguments****");
 
         final String ppmBaseUrl = args[0];
@@ -47,6 +51,8 @@ public class UpdateFeatures {
         final String password = args[2];
         final String requestId = args[3];
         final String projectId = args[4];
+        final String ooBaseUrl = args[5];
+        final String ooAuthKey = args[6];
         // Create new instances of ImpactAssessmentProcessor objects to be used in this class
         ImpactAssessmentProcessor iaProcessor = new ImpactAssessmentProcessor();
         try {
@@ -69,13 +75,19 @@ public class UpdateFeatures {
                     // Iterate through the IS PMO Feature/IS PMO Testing Feature requests
                     for (FeatureValues featuresLinkedToIa : featuresLinkedToIaData) {
                         // Assign the PPM Feature, IS Domain to string variable
-                        String featureDomain = featuresLinkedToIa.getFeature_is_Domain();
-                        log("Feature Number: " + featuresLinkedToIa.getFeature_request_id() + " and IS Domain: " + featureDomain);
+                        String featureDomain = featuresLinkedToIa.getFeatureIsDomain();
+                        log("Feature Number: " + featuresLinkedToIa.getFeatureRequestId() + " and IS Domain: " + featureDomain);
                         log("<p style=\"float: left;\">");
                         // Check Feature Domain equal to "Test Automation"
                         if (featureDomain.equalsIgnoreCase("Test Automation")) {
                             // Update the IS PMO Testing Feature Request Type
-                            iaProcessor.updateFeatureRequestTypeImpactedSystemFields(ppmBaseUrl, username, password, REQ_REST_URL, featuresLinkedToIa.getFeature_request_id(), impactedSystemsData, impactedSystemsData, itProjectMajorMilestoneData);
+                            iaProcessor.updateFeatureRequestTypeImpactedSystemFields(ppmBaseUrl, username, password, REQ_REST_URL, featuresLinkedToIa.getFeatureRequestId(), impactedSystemsData, impactedSystemsData, itProjectMajorMilestoneData);
+                            // Update Octane Feature Impacted Systems through OpenText OO application if Octane Feature URL exists
+                            String octFeatureUrl = featuresLinkedToIa.getOctaneFeatureUrl();
+                            if (!isBlankString(octFeatureUrl)) {
+                                OctaneFeatureOoProcessor ooProcessor = new OctaneFeatureOoProcessor(ooBaseUrl, ooAuthKey, octFeatureUrl, featureDomain);
+                                ooProcessor.updateOctaneFeatureImpactedSystems();
+                            }
                         } else {
                             // IS Domains no equal to "Test Automation"
                             // Variable to store the Impacted System Values for the domain
@@ -88,7 +100,14 @@ public class UpdateFeatures {
                                 }
                             }
                             // Update the IS PMO Feature Request Type
-                            iaProcessor.updateFeatureRequestTypeImpactedSystemFields(ppmBaseUrl, username, password, REQ_REST_URL, featuresLinkedToIa.getFeature_request_id(), domainImpactedSystemValues, impactedSystemsData, itProjectMajorMilestoneData);
+                            iaProcessor.updateFeatureRequestTypeImpactedSystemFields(ppmBaseUrl, username, password, REQ_REST_URL, featuresLinkedToIa.getFeatureRequestId(), domainImpactedSystemValues, impactedSystemsData, itProjectMajorMilestoneData);
+                            // Update Octane Feature Impacted Systems through OpenText OO application if Octane Feature URL exists
+                            String octFeatureUrl = featuresLinkedToIa.getOctaneFeatureUrl();
+                            if (!isBlankString(octFeatureUrl)) {
+                                OctaneFeatureOoProcessor ooProcessor = new OctaneFeatureOoProcessor(ooBaseUrl, ooAuthKey, octFeatureUrl, featureDomain);
+                                ooProcessor.updateOctaneFeatureImpactedSystems();
+                            }
+
                         }
                         log("</p><br>");
                     }
@@ -101,16 +120,22 @@ public class UpdateFeatures {
         }
     }
 
+    private static boolean isBlankString(String string) {
+        return string == null || string.isEmpty() || string.trim().isEmpty() || string.equalsIgnoreCase("null");
+    }
+
     /**
      * Method to write out the Command Line Arguments for this class
      */
     private static void printCommandLineArguments() {
-        log("Command Line Arguments Layout: sc_ia_create_is_features <ENV_BASE_URL> <REST_USERNAME> <REST_USER_PASSWORD> <IA_REQUEST_ID> <IT_PROJECT_ID>");
+        log("Command Line Arguments Layout: sc_ia_update_is_features <ENV_BASE_URL> <REST_USERNAME> <REST_USER_PASSWORD> <IA_REQUEST_ID> <IT_PROJECT_ID> <OO_BASE_URL> <OO_AUTH_KEY>");
         log("ENV_BASE_URL: args[0] (PPM Base URL)");
         log("REST_USERNAME: args[1] (PPM System User - ppmsysuser)");
         log("REST_USER_PASSWORD: args[2] (PPM System User Password)");
         log("IA_REQUEST_ID: args[3] (IS PMO Impact Assessment No)");
-        log("IT_PROJECT_ID: args[3] (IS PMO Impact Assessment Linked IT Project Id)");
+        log("IT_PROJECT_ID: args[4] (IS PMO Impact Assessment Linked IT Project Id)");
+        log("OO_BASE_URL: args[5] (OO Environment Base URL)");
+        log("OO_AUTH_KEY: args[6] (OO Authentication Key)");
     }
 
     /**
