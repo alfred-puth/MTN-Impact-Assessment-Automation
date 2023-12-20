@@ -97,7 +97,7 @@ public class CreateIsDomainFeatures {
                     Set<String> stringSet = new HashSet<>();
                     for (String domainList : domainCreationList) {
                         log("Domain List " + domainCreationList.indexOf(domainList) + ": " + domainList);
-                        String newRequestId = iaProcessor.createIspmoFeatureRequest(ppmBaseUrl, username, password, REQ_REST_URL, requestId, projectId, projectName, domainList, itProjectInformation, itProjectReleaseInformation, epmoProjectInformation);
+                        String newRequestId = iaProcessor.createIspmoFeatureRequest(ppmBaseUrl, username, password, REQ_REST_URL, requestId, projectName, domainList, itProjectInformation, itProjectReleaseInformation, epmoProjectInformation);
                         log("Created IS PMO Feature Number:" + newRequestId);
                         // Add the Request IDs to the String Set
                         stringSet.add(newRequestId);

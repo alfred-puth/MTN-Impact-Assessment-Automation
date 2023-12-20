@@ -146,27 +146,6 @@ public class ImpactAssessmentProcessor {
     }
 
     /**
-     * Method to set the SQL string to be used for extracting the IT Project Milestones data
-     *
-     * @param prjId IT Project ID
-     * @return SQL String with the created SQL statement
-     */
-    private String setItProjectMilestonesSql(String prjId) {
-        // Create the sql String
-        String sql = "SELECT wti.name, wts.sched_finish_date, wta.act_finish_date, ks.state_name";
-        sql = sql.concat(" FROM pm_work_plans pwp")
-                .concat(" INNER JOIN wp_tasks wt ON pwp.work_plan_id = wt.work_plan_id")
-                .concat(" INNER JOIN wp_task_info wti ON wt.task_info_id = wti.task_info_id AND wti.task_type_code = 'M'")
-                .concat(" INNER JOIN wp_task_schedule wts ON wt.task_schedule_id = wts.task_schedule_id")
-                .concat(" INNER JOIN wp_task_actuals wta ON wt.task_actuals_id = wta.actuals_id")
-                .concat(" INNER JOIN wp_milestones wm ON wt.milestone_id = wm.milestone_id AND wm.major = 'Y'")
-                .concat(" INNER JOIN kdrv_states ks ON wti.status = ks.state_id");
-        sql = sql.concat(" WHERE pwp.entity_type = 'WORK_PLAN'").concat(" AND pwp.project_id = ").concat(prjId);
-        sql = sql.concat(" ORDER BY wt.sequence_number ASC");
-        return sql;
-    }
-
-    /**
      * Method that use the sqlRunner to get the Impacted System Domains from IS PMO Impact Assessment RT.
      * Use POST REST "rest2/sqlRunner/runSqlQuery" to return the data
      *
@@ -755,78 +734,6 @@ public class ImpactAssessmentProcessor {
     }
 
     /**
-     * Method to get the IT Project Milestone information
-     *
-     * @param ppmBaseUrl  PPM Base URL for identifying the PPM environment
-     * @param username    PPM User for access to the PPM entities.
-     * @param password    PPM User password
-     * @param restUrl     REST API URL for the method
-     * @param iaProjectId IT Project ID
-     * @return ArrayList Object with IT Project Milestone data
-     * @throws IOException   IO Exceptions are thrown up to the main class method
-     * @throws JSONException JSON Exceptions are thrown up to the main class method
-     */
-    protected ArrayList<ProjectMilestoneValues> getItProjectMilestoneData(String ppmBaseUrl, String username, String password,
-                                                                          String restUrl, String iaProjectId) throws IOException, JSONException {
-        // REST API URL
-        String sqlUrl = ppmBaseUrl + restUrl;
-        log("POST Request Run SQL Query URL: " + sqlUrl);
-        // Encode the Username and Password. Using Admin user to ensure
-        final String auth = username + ":" + password;
-        String encoding = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.ISO_8859_1));
-        final String authHeader = "Basic " + encoding;
-        // Set the POST Request and all the parameters
-        OkHttpClient client = new OkHttpClient().newBuilder()
-                .connectTimeout(20, TimeUnit.SECONDS)
-                .writeTimeout(90, TimeUnit.SECONDS)
-                .readTimeout(90, TimeUnit.SECONDS)
-                .callTimeout(90, TimeUnit.SECONDS).build();
-        MediaType mediaType = MediaType.parse("application/json");
-        // JSON Payload
-        String jsonPayload = "{ \"querySql\": \"" + setItProjectMilestonesSql(iaProjectId) + "\"}";
-        // POST Request Body
-        RequestBody body = RequestBody.create(mediaType, jsonPayload);
-        // POST Request
-        Request request = new Request.Builder()
-                .url(sqlUrl).addHeader("Authorization", authHeader)
-                .addHeader("accept", "application/json")
-                .addHeader("Ephemeral", "true")
-                .post(body)
-                .build();
-        Call call = client.newCall(request);
-        // Execute the POST Request
-        Response response = call.execute();
-        // Get the Response from server for the GET REST Request done.
-        if (!response.isSuccessful()) {
-            throw new RuntimeException("Failed : HTTP error code : " + response.code());
-        }
-        // Check Response Body
-        assert response.body() != null : "The POST Return Body is Empty";
-        // Set the JSONObject from the Response Body
-        JSONObject json = new JSONObject(response.body().string());
-        log("JSON SQL Return output: " + json);
-        // Set the JSONArray with the "results" token Array List
-        JSONArray jsonResults = new JSONArray(json.getString("results"));
-        ArrayList<ProjectMilestoneValues> result = new ArrayList<>();
-        if (!jsonResults.isEmpty()) {
-            // Get the "values" token Array from the "results" token Array
-            JSONArray jsonValues = new JSONArray(jsonResults.toString());
-            for (int i = 0; i < jsonValues.length(); i++) {
-                // Convert to an JSONObject to get the data Array
-                JSONTokener tokenerVal = new JSONTokener(jsonValues.get(i).toString());
-                JSONObject jsonVal = new JSONObject(tokenerVal);
-                // Set the JSONArray with the "results" token Array List
-                JSONArray jsonValue = new JSONArray(jsonVal.getString("values"));
-                result.add(new ProjectMilestoneValues(jsonValue.get(0).toString(), jsonValue.get(1).toString(), jsonValue.get(2).toString(), jsonValue.get(3).toString()));
-            }
-        }
-
-        response.close();
-        // Return data as HashMap<String, String>
-        return result;
-    }
-
-    /**
      * Method to get the list of Domains that does not have a IS PMO Feature RT created for the linked IS PMO Impact Assessment RT
      *
      * @param iaDomians      mpact Assessment Domains Array List
@@ -841,10 +748,10 @@ public class ImpactAssessmentProcessor {
         if (!result.isEmpty()) {
             result.removeAll(featureDomians);
             // Check if there are any Impacted Systems without PPM Features
-            if (result.size() > 0) {
+            if (!result.isEmpty()) {
                 // Sort list alphabetically to create features
                 Collections.sort(iaDomians);
-                result = iaDomians;
+//                result = iaDomians;
             }
         }
         return result;
@@ -1229,7 +1136,6 @@ public class ImpactAssessmentProcessor {
      * @param password      PPM User password
      * @param restUrl       REST API URL for the method
      * @param iaRequestId   IS PMO Impact Assessment Request ID
-     * @param iaProjectId   IS PMO Impact Assessment linked IT Project ID
      * @param iaProjectName IS PMO Impact Assessment linked IT Project
      * @param itProjectData IS PMO Impact Assessment linked IT Project Data
      * @param itReleaseData IS PMO Impact Assessment linked IT Project Release Data
@@ -1238,7 +1144,7 @@ public class ImpactAssessmentProcessor {
      * @throws IOException   IO Exceptions are thrown up to the main class method
      * @throws JSONException JSON Exceptions are thrown up to the main class method
      */
-    protected String createIspmoFeatureRequest(String ppmBaseUrl, String username, String password, String restUrl, String iaRequestId, String iaProjectId, String iaProjectName, String iaDomain, HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData) throws IOException, JSONException {
+    protected String createIspmoFeatureRequest(String ppmBaseUrl, String username, String password, String restUrl, String iaRequestId, String iaProjectName, String iaDomain, HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData) throws IOException, JSONException {
 
         // REST API URL
         String requestUrl = ppmBaseUrl + restUrl;
@@ -1332,10 +1238,9 @@ public class ImpactAssessmentProcessor {
      *
      * @param impactedSystemsObjArray    Impacted System Table values for the Domain
      * @param allImpactedSystemsObjArray All Impacted System Table data
-     * @param itProjectMilestoneObjArray IT Project Major Milestone data
      * @return Json Object with the payload
      */
-    private JSONObject setJsonObjectUpdateFeatureRequestTypeImpactedSystemFields(ArrayList<ImpactedSystemValues> impactedSystemsObjArray, ArrayList<ImpactedSystemValues> allImpactedSystemsObjArray, ArrayList<ProjectMilestoneValues> itProjectMilestoneObjArray) throws ParseException {
+    private JSONObject setJsonObjectUpdateFeatureRequestTypeImpactedSystemFields(ArrayList<ImpactedSystemValues> impactedSystemsObjArray, ArrayList<ImpactedSystemValues> allImpactedSystemsObjArray) {
         // Get the current date and time in "yyyy-MM-dd'T'HH:mm:ss" format" No need to
         // include include the micro seconds and timezone
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -1374,14 +1279,6 @@ public class ImpactAssessmentProcessor {
         String allInvolvementString = setDomainInvolvementHtml(allImpactedSystemsObjArray);
         stringValueAllInvolvementArray.put(allInvolvementString);
         tokenAllInvolvementObj.put("stringValue", stringValueAllInvolvementArray);
-        // RT Token: ISPMO_MILESTONES
-        JSONObject tokenProjectMilestoneObj = new JSONObject();
-        tokenProjectMilestoneObj.put("token", "REQD.ISPMO_MILESTONES");
-        // Set the stringValue Array for the Involvement
-        JSONArray stringValueProjectMilestoneArray = new JSONArray();
-        String projectMilestoneString = setProjectMilestoneHtml(itProjectMilestoneObjArray);
-        stringValueProjectMilestoneArray.put(projectMilestoneString);
-        tokenProjectMilestoneObj.put("stringValue", stringValueProjectMilestoneArray);
         // Set the Field Array for the IS PMO Feature Request dynamically depending on the data
         JSONArray fieldArray = new JSONArray();
         fieldArray.put(tokensLastUpdateDateObj);
@@ -1389,7 +1286,6 @@ public class ImpactAssessmentProcessor {
         fieldArray.put(tokenImpactedSystemsObj);
         fieldArray.put(tokenInvolvementObj);
         fieldArray.put(tokenAllInvolvementObj);
-        fieldArray.put(tokenProjectMilestoneObj);
         // Set the Field Object
         JSONObject fieldObj = new JSONObject();
         fieldObj.put("field", fieldArray);
@@ -1416,7 +1312,7 @@ public class ImpactAssessmentProcessor {
      * @throws IOException   IO Exceptions are thrown up to the main class method
      * @throws JSONException JSON Exceptions are thrown up to the main class method
      */
-    protected void updateFeatureRequestTypeImpactedSystemFields(String ppmBaseUrl, String username, String password, String restUrl, String featureReqId, ArrayList<ImpactedSystemValues> isValuesObjArray, ArrayList<ImpactedSystemValues> isAllValuesObjArray, ArrayList<ProjectMilestoneValues> prjMilestones) throws IOException, JSONException, ParseException {
+    protected void updateFeatureRequestTypeImpactedSystemFields(String ppmBaseUrl, String username, String password, String restUrl, String featureReqId, ArrayList<ImpactedSystemValues> isValuesObjArray, ArrayList<ImpactedSystemValues> isAllValuesObjArray) throws IOException, JSONException, ParseException {
 
         // REST API URL
         String requestUrl = ppmBaseUrl + restUrl + "/" + featureReqId;
@@ -1433,7 +1329,7 @@ public class ImpactAssessmentProcessor {
                 .callTimeout(90, TimeUnit.SECONDS).build();
         MediaType mediaType = MediaType.parse("application/json");
         // JSON Payload
-        String jsonPayload = setJsonObjectUpdateFeatureRequestTypeImpactedSystemFields(isValuesObjArray, isAllValuesObjArray, prjMilestones).toString();
+        String jsonPayload = setJsonObjectUpdateFeatureRequestTypeImpactedSystemFields(isValuesObjArray, isAllValuesObjArray).toString();
         log("Create IS PMO Feature Pay Load: " + jsonPayload);
         // POST Request Body
         RequestBody body = RequestBody.create(mediaType, jsonPayload);
@@ -1517,54 +1413,6 @@ public class ImpactAssessmentProcessor {
         return result;
     }
 
-    /**
-     * Method to set the HTML for the IT Project Milestones
-     *
-     * @param projectMilestoneObj IT Project Major Milestone value array list
-     * @return HTML string
-     */
-    private String setProjectMilestoneHtml(ArrayList<ProjectMilestoneValues> projectMilestoneObj) throws ParseException {
-        String result = null;
-        // Format the date for display in HTML table
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-        // Build the string with HTML tags for a table
-        if (!projectMilestoneObj.isEmpty()) {
-
-            result = "<table style=\"border: 1px solid black; border-collapse: collapse; width: 98%;\">";
-            result = result.concat("<tr>");
-            result = result.concat("<td style=\"font-weight: bold; width: 40%;\">Milestone</td>");
-            result = result.concat("<td style=\"font-weight: bold; width: 20%;\">Scheduled Finish</td>");
-            result = result.concat("<td style=\"font-weight: bold; width: 20%;\">Actual Finish</td>");
-            result = result.concat("<td style=\"font-weight: bold;\">Status</td>");
-            result = result.concat("</tr>");
-            // Iterate through the Domain Involvement Object
-            for (ProjectMilestoneValues projectMilestoneValues : projectMilestoneObj) {
-                result = result.concat("<tr>");
-                // Milestone
-                result = result.concat("<td>").concat(projectMilestoneValues.getMilestoneTaskName()).concat("</td>");
-                // Scheduled Finish
-                String milestoneScheduledFinishDate = projectMilestoneValues.getMilestoneScheduledFinishDate();
-                if (milestoneScheduledFinishDate.equalsIgnoreCase("null")) {
-                    result = result.concat("<td>").concat("-").concat("</td>");
-                } else {
-                    result = result.concat("<td>").concat(formatter.parse(milestoneScheduledFinishDate).toString()).concat("</td>");
-                }
-                // Actual Finish
-                String milestoneActualFinishDate = projectMilestoneValues.getMilestoneActualFinishDate();
-                if (milestoneActualFinishDate.equalsIgnoreCase("null")) {
-                    result = result.concat("<td>").concat("-").concat("</td>");
-                } else {
-                    result = result.concat("<td>").concat(formatter.parse(milestoneActualFinishDate).toString()).concat("</td>");
-                }
-                // Status
-                result = result.concat("<td>").concat(projectMilestoneValues.getMilestoneTaskStatus()).concat("</td>");
-                result = result.concat("</tr>");
-                // <<-- Testing multiple rows when field is not edible-->>
-            }
-            result = result.concat("</table>");
-        }
-        return result;
-    }
 
     /**
      * Method to write out to the consul

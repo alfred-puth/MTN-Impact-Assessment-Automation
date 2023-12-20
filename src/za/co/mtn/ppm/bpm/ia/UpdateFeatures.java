@@ -23,6 +23,8 @@ public class UpdateFeatures {
      *             REST_USER_PASSWORD: args[2] (PPM System User Password)
      *             IA_REQUEST_ID: args[3] (IS PMO Impact Assessment No)
      *             PROJECT_ID: args[4] (IT Project ID linked to the IS PMO Impact Assessment Request)
+     *             OO_BASE_URL: args[5] (OpenText OO application URL)
+     *             OO_AUTH_KEY: args[6] (OpenText OO application Authentication Key)
      */
     public static void main(String[] args) {
         // Verify that all Command Line Arguments has been submitted
@@ -67,8 +69,6 @@ public class UpdateFeatures {
                 log("<<- Get PPM Features REST SQL Query ->>");
                 // Assign PPM Features data to the ArrayList Object with the linked PPM Features
                 ArrayList<FeatureValues> featuresLinkedToIaData = iaProcessor.getFeaturesLinkedToIaData(ppmBaseUrl, username, password, SQL_REST_URL, projectId);
-                log("<<- Get IT Project Major Milestone REST SQL Query ->>");
-                ArrayList<ProjectMilestoneValues> itProjectMajorMilestoneData = iaProcessor.getItProjectMilestoneData(ppmBaseUrl, username, password, SQL_REST_URL, projectId);
                 log("<<-- Start Update PUT Request (IS PMO Feature(s) or IS PMO Testing Feature) -->>");
                 // Check if the ArrayList Object with the linked PPM Features is empty
                 if (!featuresLinkedToIaData.isEmpty()) {
@@ -81,10 +81,10 @@ public class UpdateFeatures {
                         // Check Feature Domain equal to "Test Automation"
                         if (featureDomain.equalsIgnoreCase("Test Automation")) {
                             // Update the IS PMO Testing Feature Request Type
-                            iaProcessor.updateFeatureRequestTypeImpactedSystemFields(ppmBaseUrl, username, password, REQ_REST_URL, featuresLinkedToIa.getFeatureRequestId(), impactedSystemsData, impactedSystemsData, itProjectMajorMilestoneData);
+                            iaProcessor.updateFeatureRequestTypeImpactedSystemFields(ppmBaseUrl, username, password, REQ_REST_URL, featuresLinkedToIa.getFeatureRequestId(), impactedSystemsData, impactedSystemsData);
                             // Update Octane Feature Impacted Systems through OpenText OO application if Octane Feature URL exists
                             String octFeatureUrl = featuresLinkedToIa.getOctaneFeatureUrl();
-                            if (!isBlankString(octFeatureUrl)) {
+                            if (isNotBlankString(octFeatureUrl)) {
                                 OctaneFeatureOoProcessor ooProcessor = new OctaneFeatureOoProcessor(ooBaseUrl, ooAuthKey, octFeatureUrl, featureDomain);
                                 ooProcessor.updateOctaneFeatureImpactedSystems();
                             }
@@ -100,10 +100,10 @@ public class UpdateFeatures {
                                 }
                             }
                             // Update the IS PMO Feature Request Type
-                            iaProcessor.updateFeatureRequestTypeImpactedSystemFields(ppmBaseUrl, username, password, REQ_REST_URL, featuresLinkedToIa.getFeatureRequestId(), domainImpactedSystemValues, impactedSystemsData, itProjectMajorMilestoneData);
+                            iaProcessor.updateFeatureRequestTypeImpactedSystemFields(ppmBaseUrl, username, password, REQ_REST_URL, featuresLinkedToIa.getFeatureRequestId(), domainImpactedSystemValues, impactedSystemsData);
                             // Update Octane Feature Impacted Systems through OpenText OO application if Octane Feature URL exists
                             String octFeatureUrl = featuresLinkedToIa.getOctaneFeatureUrl();
-                            if (!isBlankString(octFeatureUrl)) {
+                            if (isNotBlankString(octFeatureUrl)) {
                                 OctaneFeatureOoProcessor ooProcessor = new OctaneFeatureOoProcessor(ooBaseUrl, ooAuthKey, octFeatureUrl, featureDomain);
                                 ooProcessor.updateOctaneFeatureImpactedSystems();
                             }
@@ -120,8 +120,14 @@ public class UpdateFeatures {
         }
     }
 
-    private static boolean isBlankString(String string) {
-        return string == null || string.isEmpty() || string.trim().isEmpty() || string.equalsIgnoreCase("null");
+    /**
+     * Method to check if a String is Blank or Null
+     *
+     * @param string String for verification
+     * @return Boolean (True or False)
+     */
+    private static boolean isNotBlankString(String string) {
+        return string != null && !string.isEmpty() && !string.trim().isEmpty() && !string.equalsIgnoreCase("null");
     }
 
     /**
