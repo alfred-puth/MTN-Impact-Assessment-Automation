@@ -1098,6 +1098,7 @@ public class ImpactAssessmentProcessor {
         if (!tokenIspmoPrjNumObj.isEmpty()) fieldArray.put(tokenIspmoPrjNumObj);
         if (!tokenIspmoPrjUrlObj.isEmpty()) fieldArray.put(tokenIspmoPrjUrlObj);
         if (!tokenIspmoPrjPhaseObj.isEmpty()) fieldArray.put(tokenIspmoPrjPhaseObj);
+        if (!tokenIspmoPrjStatusObj.isEmpty()) fieldArray.put(tokenIspmoPrjStatusObj);
         if (!tokenEpmoProjectNumObj.isEmpty()) fieldArray.put(tokenEpmoProjectNumObj);
         if (!tokenIspmoPmObj.isEmpty()) fieldArray.put(tokenIspmoPmObj);
         if (!tokenIspmoPrjRagObj.isEmpty()) fieldArray.put(tokenIspmoPrjRagObj);
