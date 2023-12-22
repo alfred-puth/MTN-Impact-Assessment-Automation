@@ -1,5 +1,11 @@
 package za.co.mtn.ppm.bpm.ia;
 
+import org.json.JSONException;
+import za.co.mtn.ppm.bpm.ismpo.project.IspmoProjectMilestoneProcessor;
+import za.co.mtn.ppm.bpm.ismpo.project.ProjectMilestoneValues;
+
+import java.io.IOException;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -93,11 +99,15 @@ public class CreateIsDomainFeatures {
                         epmoProjectInformation = iaProcessor.getEpmoProjectData(ppmBaseUrl, username, password,
                                 SQL_REST_URL, projectId);
                     }
+                    log("<<- Get IT Project Milestone Data REST SQL Query->>");
+                    // Create new instances of IspmoProjectMilestoneProcessor class
+                    IspmoProjectMilestoneProcessor prjMil = new IspmoProjectMilestoneProcessor();
+                    ArrayList<ProjectMilestoneValues> projectMilestoneArraylist = prjMil.getItProjectMilestoneData(ppmBaseUrl, username, password, SQL_REST_URL, itProjectInformation.get("ISPMO_PRJ_NUM"));
                     log("<<-- Create IS PMO Feature(s)  -->>");
                     Set<String> stringSet = new HashSet<>();
                     for (String domainList : domainCreationList) {
                         log("Domain List " + domainCreationList.indexOf(domainList) + ": " + domainList);
-                        String newRequestId = iaProcessor.createIspmoFeatureRequest(ppmBaseUrl, username, password, REQ_REST_URL, requestId, projectName, domainList, itProjectInformation, itProjectReleaseInformation, epmoProjectInformation);
+                        String newRequestId = iaProcessor.createIspmoFeatureRequest(ppmBaseUrl, username, password, REQ_REST_URL, requestId, projectName, domainList, itProjectInformation, itProjectReleaseInformation, epmoProjectInformation, projectMilestoneArraylist);
                         log("Created IS PMO Feature Number:" + newRequestId);
                         // Add the Request IDs to the String Set
                         stringSet.add(newRequestId);
@@ -116,10 +126,8 @@ public class CreateIsDomainFeatures {
 
             }
 
-        } catch (Exception e) {
-            //noinspection CallToPrintStackTrace
-            e.printStackTrace();
-            System.exit(1);
+        } catch (IOException | ParseException | JSONException e) {
+            throw new RuntimeException(e);
         }
     }
 

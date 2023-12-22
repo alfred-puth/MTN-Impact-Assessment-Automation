@@ -8,5 +8,6 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="PPM_23" level="project" />
+    <orderEntry type="library" name="ispmo-project-automation" level="project" />
   </component>
 </module>

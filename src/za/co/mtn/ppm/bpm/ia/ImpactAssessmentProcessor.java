@@ -6,6 +6,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
+import za.co.mtn.ppm.bpm.ismpo.project.IspmoProjectMilestoneProcessor;
+import za.co.mtn.ppm.bpm.ismpo.project.ProjectMilestoneValues;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -760,16 +762,17 @@ public class ImpactAssessmentProcessor {
     /**
      * Method to generate the JSON Payload for the creation of the IS PMO Feature Request
      *
-     * @param iaRequestId   IS PMO Impact Assessment Request ID
-     * @param iaProjectName IS PMO Impact Assessment linked IT Project
-     * @param iaIsDomain    Domain identifier for the IS PMO Feature Request Creation
-     * @param itProjectData IS PMO Impact Assessment linked IT Project Data
-     * @param itReleaseData IS PMO Impact Assessment linked IT Project Release Data
-     * @param epmoPrjData   IS PMO Impact Assessment linked IT Project's EPMO Project Data
+     * @param iaRequestId            IS PMO Impact Assessment Request ID
+     * @param iaProjectName          IS PMO Impact Assessment linked IT Project
+     * @param iaIsDomain             Domain identifier for the IS PMO Feature Request Creation
+     * @param itProjectData          IS PMO Impact Assessment linked IT Project Data
+     * @param itReleaseData          IS PMO Impact Assessment linked IT Project Release Data
+     * @param epmoPrjData            IS PMO Impact Assessment linked IT Project's EPMO Project Data
+     * @param itProjectMilestoneData IS PMO Impact Assessment linked IT Project Milestone Data
      * @return JSON Payload
      */
     private JSONObject setJsonObjectCreateRequestType(String iaRequestId, String iaProjectName, String iaIsDomain,
-                                                      HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData) {
+                                                      HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData, ArrayList<ProjectMilestoneValues> itProjectMilestoneData) throws ParseException {
         // Get the current date and time in "yyyy-MM-dd'T'HH:mm:ss" format" No need to
         // include include the micro seconds and timezone
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -971,6 +974,19 @@ public class ImpactAssessmentProcessor {
             // Add Array to the JSONObject
             tokenIspmoPrjShortDescriptionObj.put("stringValue", stringValueIspmoPrjShortDescriptionArray);
         }
+        // RT Token: ISPMO_MILESTONES
+        JSONObject tokenProjectMilestoneObj = new JSONObject();
+        // Check if IT Project Work Plan and Milestones exist
+        if (!itProjectMilestoneData.isEmpty()) {
+            tokenProjectMilestoneObj.put("token", "REQD.ISPMO_MILESTONES");
+            // Set the stringValue Array for the Involvement
+            JSONArray stringValueProjectMilestoneArray = new JSONArray();
+            // Create new instances of IspmoProjectMilestoneProcessor class
+            IspmoProjectMilestoneProcessor projectMilestones = new IspmoProjectMilestoneProcessor();
+            String projectMilestoneString = projectMilestones.setProjectMilestoneHtml(itProjectMilestoneData);
+            stringValueProjectMilestoneArray.put(projectMilestoneString);
+            tokenProjectMilestoneObj.put("stringValue", stringValueProjectMilestoneArray);
+        }
         // End the IT Project fields to create the IS PMO Feature from the HashMap Array: itProjectData
         // Start with the IT Project Release fields to create the IS PMO Feature from the
         // HashMap Array: itReleaseData
@@ -1108,6 +1124,7 @@ public class ImpactAssessmentProcessor {
         if (!tokenOrgPriorityObj.isEmpty()) fieldArray.put(tokenOrgPriorityObj);
         if (!tokenIspmoProjectTypeObj.isEmpty()) fieldArray.put(tokenIspmoProjectTypeObj);
         if (!tokenIspmoPrjShortDescriptionObj.isEmpty()) fieldArray.put(tokenIspmoPrjShortDescriptionObj);
+        if (!tokenProjectMilestoneObj.isEmpty()) fieldArray.put(tokenProjectMilestoneObj);
         if (!tokenIspmoRetailBuildObj.isEmpty()) fieldArray.put(tokenIspmoRetailBuildObj);
         if (!tokenIspmoChargingSystemsObj.isEmpty()) fieldArray.put(tokenIspmoChargingSystemsObj);
         if (!tokenIspmoWholesaleObj.isEmpty()) fieldArray.put(tokenIspmoWholesaleObj);
@@ -1145,7 +1162,7 @@ public class ImpactAssessmentProcessor {
      * @throws IOException   IO Exceptions are thrown up to the main class method
      * @throws JSONException JSON Exceptions are thrown up to the main class method
      */
-    protected String createIspmoFeatureRequest(String ppmBaseUrl, String username, String password, String restUrl, String iaRequestId, String iaProjectName, String iaDomain, HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData) throws IOException, JSONException {
+    protected String createIspmoFeatureRequest(String ppmBaseUrl, String username, String password, String restUrl, String iaRequestId, String iaProjectName, String iaDomain, HashMap<String, String> itProjectData, HashMap<String, String> itReleaseData, HashMap<String, String> epmoPrjData, ArrayList<ProjectMilestoneValues> itProjectMilestonesArrayList) throws IOException, JSONException, ParseException {
 
         // REST API URL
         String requestUrl = ppmBaseUrl + restUrl;
@@ -1162,7 +1179,7 @@ public class ImpactAssessmentProcessor {
                 .callTimeout(90, TimeUnit.SECONDS).build();
         MediaType mediaType = MediaType.parse("application/json");
         // JSON Payload
-        String jsonPayload = setJsonObjectCreateRequestType(iaRequestId, iaProjectName, iaDomain, itProjectData, itReleaseData, epmoPrjData).toString();
+        String jsonPayload = setJsonObjectCreateRequestType(iaRequestId, iaProjectName, iaDomain, itProjectData, itReleaseData, epmoPrjData, itProjectMilestonesArrayList).toString();
         log("Create IS PMO Feature Pay Load: " + jsonPayload);
         // POST Request Body
         RequestBody body = RequestBody.create(mediaType, jsonPayload);
