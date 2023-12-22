@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="ispmo-project-automation">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/../MtnIspmoProjectAutomation/out/artifacts/MtnIspmoProjectAutomation_jar/ispmo-project-automation.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
