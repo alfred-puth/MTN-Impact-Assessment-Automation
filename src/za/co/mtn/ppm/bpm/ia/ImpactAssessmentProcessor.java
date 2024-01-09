@@ -1409,6 +1409,8 @@ public class ImpactAssessmentProcessor {
         String result = null;
         // Result String Length indicator
         int stringLength = 0;
+        // Final Table string
+        final String endHtmlTable = "</table>";
         // Build the string with HTML tags for a table
         if (!domainInvolvementObj.isEmpty()) {
             // Header Table string
@@ -1438,7 +1440,7 @@ public class ImpactAssessmentProcessor {
                 innerHtmlTable = innerHtmlTable.concat("<td>").concat(impactedSystemValues.getEstimateHours()).concat("</td>");
                 innerHtmlTable = innerHtmlTable.concat("</tr>");
                 // Check if the Cumulative Result String Length indicator plus Inner Table string length is less than the HTML Text Area Maximum Character length
-                if ((stringLength + innerHtmlTable.length()) < TEXT_AREA_HTML_MAX) {
+                if ((stringLength + innerHtmlTable.length() + endHtmlTable.length()) <= TEXT_AREA_HTML_MAX) {
                     // Assign the Inner Table string to the Return Result string
                     result = result.concat(innerHtmlTable);
                     // Set the Result String Length indicator after each iteration was created and less than HTML Text Area Maximum Character length
@@ -1448,9 +1450,7 @@ public class ImpactAssessmentProcessor {
                     break;
                 }
             }
-            // Final Table string
-            String endHtmlTable = null;
-            endHtmlTable = "</table>";
+
             // Assign the Final Table string to the Return Result string
             result = result.concat(endHtmlTable);
             // Set the Result String Length indicator after Final Table string was added
