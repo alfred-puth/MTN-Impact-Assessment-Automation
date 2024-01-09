@@ -6,7 +6,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
-import za.co.mtn.ppm.bpm.ismpo.project.IspmoProjectMilestoneProcessor;
+import za.co.mtn.ppm.bpm.ismpo.project.IspmoItProjectProcessor;
 import za.co.mtn.ppm.bpm.ismpo.project.ProjectMilestoneValues;
 
 import java.io.IOException;
@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 public class ImpactAssessmentProcessor {
     // Constant variables for the class
     private static final String PRJ_URL = "project/ViewProject.do?projectId=";
+    private static final int TEXT_AREA_HTML_MAX = 4000;
 
     /**
      * Method to set the SQL string to be used for extracting the Domain list from the Impacted Systems Table Component on the IS PMO Impact Assessment Request
@@ -982,7 +983,7 @@ public class ImpactAssessmentProcessor {
             // Set the stringValue Array for the Involvement
             JSONArray stringValueProjectMilestoneArray = new JSONArray();
             // Create new instances of IspmoProjectMilestoneProcessor class
-            IspmoProjectMilestoneProcessor projectMilestones = new IspmoProjectMilestoneProcessor();
+            IspmoItProjectProcessor projectMilestones = new IspmoItProjectProcessor();
             String projectMilestoneString = projectMilestones.setProjectMilestoneHtml(itProjectMilestoneData);
             stringValueProjectMilestoneArray.put(projectMilestoneString);
             tokenProjectMilestoneObj.put("stringValue", stringValueProjectMilestoneArray);
@@ -1404,29 +1405,57 @@ public class ImpactAssessmentProcessor {
      * @return HTML String
      */
     private String setDomainInvolvementHtml(ArrayList<ImpactedSystemValues> domainInvolvementObj) {
+        // Return String result
         String result = null;
+        // Result String Length indicator
+        int stringLength = 0;
         // Build the string with HTML tags for a table
         if (!domainInvolvementObj.isEmpty()) {
-
-            result = "<table style=\"border: 1px solid black; border-collapse: collapse; width: 98%;\">";
-            result = result.concat("<tr>");
-            result = result.concat("<td style=\"font-weight: bold; width: 39%;\">Systems Impacted</td>");
-            result = result.concat("<td style=\"font-weight: bold; width: 39%;\">Involvement</td>");
-            result = result.concat("<td style=\"font-weight: bold;\">Effort Estimation (Hours)</td>");
-            result = result.concat("</tr>");
+            // Header Table string
+            String headerHtmlTable = null;
+            // Add header of the html table
+            headerHtmlTable = "<table style=\"border: 1px solid black; border-collapse: collapse; width: 98%;\">";
+            headerHtmlTable = headerHtmlTable.concat("<tr>");
+            headerHtmlTable = headerHtmlTable.concat("<td style=\"font-weight: bold; width: 39%;\">Systems Impacted</td>");
+            headerHtmlTable = headerHtmlTable.concat("<td style=\"font-weight: bold; width: 39%;\">Involvement</td>");
+            headerHtmlTable = headerHtmlTable.concat("<td style=\"font-weight: bold;\">Effort Estimation (Hours)</td>");
+            headerHtmlTable = headerHtmlTable.concat("</tr>");
+            // Assign the Header Table string to the Return Result string
+            result = headerHtmlTable;
+            // Set the Result String Length indicator after HTML Header was created
+            stringLength = stringLength + headerHtmlTable.length();
             // Iterate through the Domain Involvement Object
             for (ImpactedSystemValues impactedSystemValues : domainInvolvementObj) {
-                result = result.concat("<tr>");
+                // Inner Table string
+                String innerHtmlTable = null;
+                // Create the Row in the table body
+                innerHtmlTable = "<tr>";
                 // Systems Impacted
-                result = result.concat("<td>").concat(impactedSystemValues.getImpactedSystem()).concat("</td>");
+                innerHtmlTable = innerHtmlTable.concat("<td>").concat(impactedSystemValues.getImpactedSystem()).concat("</td>");
                 // Involvement
-                result = result.concat("<td>").concat(impactedSystemValues.getInvolvement()).concat("</td>");
+                innerHtmlTable = innerHtmlTable.concat("<td>").concat(impactedSystemValues.getInvolvement()).concat("</td>");
                 // Effort Estimation (Hours)
-                result = result.concat("<td>").concat(impactedSystemValues.getEstimateHours()).concat("</td>");
-                result = result.concat("</tr>");
-                // <<-- Testing multiple rows when field is not edible-->>
+                innerHtmlTable = innerHtmlTable.concat("<td>").concat(impactedSystemValues.getEstimateHours()).concat("</td>");
+                innerHtmlTable = innerHtmlTable.concat("</tr>");
+                // Check if the Cumulative Result String Length indicator plus Inner Table string length is less than the HTML Text Area Maximum Character length
+                if ((stringLength + innerHtmlTable.length()) < TEXT_AREA_HTML_MAX) {
+                    // Assign the Inner Table string to the Return Result string
+                    result = result.concat(innerHtmlTable);
+                    // Set the Result String Length indicator after each iteration was created and less than HTML Text Area Maximum Character length
+                    stringLength = stringLength + innerHtmlTable.length();
+                } else {
+                    // Break out of the loop if greater or equal to HTML Text Area Maximum Character length
+                    break;
+                }
             }
-            result = result.concat("</table>");
+            // Final Table string
+            String endHtmlTable = null;
+            endHtmlTable = "</table>";
+            // Assign the Final Table string to the Return Result string
+            result = result.concat(endHtmlTable);
+            // Set the Result String Length indicator after Final Table string was added
+            stringLength = stringLength + endHtmlTable.length();
+            log("Domain Involvement HTML Table String length: " + stringLength);
         }
         return result;
     }
