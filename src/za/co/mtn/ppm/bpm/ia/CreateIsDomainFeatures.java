@@ -1,7 +1,7 @@
 package za.co.mtn.ppm.bpm.ia;
 
 import org.json.JSONException;
-import za.co.mtn.ppm.bpm.ismpo.project.IspmoProjectMilestoneProcessor;
+import za.co.mtn.ppm.bpm.ismpo.project.IspmoItProjectProcessor;
 import za.co.mtn.ppm.bpm.ismpo.project.ProjectMilestoneValues;
 
 import java.io.IOException;
@@ -101,7 +101,7 @@ public class CreateIsDomainFeatures {
                     }
                     log("<<- Get IT Project Milestone Data REST SQL Query->>");
                     // Create new instances of IspmoProjectMilestoneProcessor class
-                    IspmoProjectMilestoneProcessor prjMil = new IspmoProjectMilestoneProcessor();
+                    IspmoItProjectProcessor prjMil = new IspmoItProjectProcessor();
                     ArrayList<ProjectMilestoneValues> projectMilestoneArraylist = prjMil.getItProjectMilestoneData(ppmBaseUrl, username, password, SQL_REST_URL, itProjectInformation.get("ISPMO_PRJ_NUM"));
                     log("<<-- Create IS PMO Feature(s)  -->>");
                     Set<String> stringSet = new HashSet<>();
