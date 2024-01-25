@@ -76,8 +76,7 @@ public class UpdateFeatures {
                     for (FeatureValues featuresLinkedToIa : featuresLinkedToIaData) {
                         // Assign the PPM Feature, IS Domain to string variable
                         String featureDomain = featuresLinkedToIa.getFeatureIsDomain();
-                        log("Feature Number: " + featuresLinkedToIa.getFeatureRequestId() + " and IS Domain: " + featureDomain);
-                        log("<p style=\"float: left;\">");
+                        log("<strong>Feature Number: " + featuresLinkedToIa.getFeatureRequestId() + " and IS Domain: " + featureDomain + "</strong>");
                         // Check Feature Domain equal to "Test Automation"
                         if (featureDomain.equalsIgnoreCase("Test Automation")) {
                             // Update the IS PMO Testing Feature Request Type
@@ -109,7 +108,6 @@ public class UpdateFeatures {
                             }
 
                         }
-                        log("</p><br>");
                     }
                 }
                 log("<<-- End Update PUT Request (IS PMO Feature(s) or IS PMO Testing Feature) -->>");

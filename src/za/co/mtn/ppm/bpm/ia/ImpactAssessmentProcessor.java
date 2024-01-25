@@ -809,7 +809,7 @@ public class ImpactAssessmentProcessor {
             stringValueDescriptionArray.put(featureOtherDescription);
         } else {
             // '(IS ' || kfpp.request_id || ') ' || kfpp.project_name
-            String featureKtloDescription = "(IS ".concat(itProjectData.get("ISPMO_PRJ_NUM")).concat(") ")
+            String featureKtloDescription = "(IS ".concat(itProjectData.get("ISPMO_PRJ_NUM")).concat(")")
                     .concat(iaProjectName);
             stringValueDescriptionArray.put(featureKtloDescription);
         }
@@ -1167,7 +1167,9 @@ public class ImpactAssessmentProcessor {
 
         // REST API URL
         String requestUrl = ppmBaseUrl + restUrl;
+        log("<p stryle=\"margin-left:1px\">");
         log("POST Request Creating RT URL: " + requestUrl);
+        log("</p><br>");
         // Encode the Username and Password. Using Admin user to ensure
         final String auth = username + ":" + password;
         String encoding = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.ISO_8859_1));
@@ -1181,7 +1183,9 @@ public class ImpactAssessmentProcessor {
         MediaType mediaType = MediaType.parse("application/json");
         // JSON Payload
         String jsonPayload = setJsonObjectCreateRequestType(iaRequestId, iaProjectName, iaDomain, itProjectData, itReleaseData, epmoPrjData, itProjectMilestonesArrayList).toString();
+        log("<p stryle=\"margin-left:1px\">");
         log("Create IS PMO Feature Pay Load: " + jsonPayload);
+        log("<hr></p><br>");
         // POST Request Body
         RequestBody body = RequestBody.create(mediaType, jsonPayload);
         // POST Request
@@ -1203,7 +1207,9 @@ public class ImpactAssessmentProcessor {
         assert response.body() != null : "The POST Return Body is Empty";
         // Set the JSONObject from the Response Body
         JSONObject json = new JSONObject(response.body().string());
+        log("<p stryle=\"margin-left:1px\">");
         log("Successful POST response output Updating RT: " + json);
+        log("<hr></p><br>");
         // Disconnect the connection
         response.close();
         // Return String with Request ID
@@ -1335,7 +1341,9 @@ public class ImpactAssessmentProcessor {
 
         // REST API URL
         String requestUrl = ppmBaseUrl + restUrl + "/" + featureReqId;
+        log("<p stryle=\"margin-left:1px\">");
         log("PUT Request Update RT URL: " + requestUrl);
+        log("</p><br>");
         // Encode the Username and Password. Using Admin user to ensure
         final String auth = username + ":" + password;
         String encoding = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.ISO_8859_1));
@@ -1349,7 +1357,9 @@ public class ImpactAssessmentProcessor {
         MediaType mediaType = MediaType.parse("application/json");
         // JSON Payload
         String jsonPayload = setJsonObjectUpdateFeatureRequestTypeImpactedSystemFields(isValuesObjArray, isAllValuesObjArray).toString();
+        log("<p stryle=\"margin-left:1px\">");
         log("Create IS PMO Feature Pay Load: " + jsonPayload);
+        log("<hr></p><br>");
         // POST Request Body
         RequestBody body = RequestBody.create(mediaType, jsonPayload);
         // POST Request
@@ -1371,7 +1381,9 @@ public class ImpactAssessmentProcessor {
         assert response.body() != null : "The PUT Return Body is Empty";
         // Set the JSONObject from the Response Body
         JSONObject json = new JSONObject(response.body().string());
+        log("<p stryle=\"margin-left:1px\">");
         log("Successful PUT response output Updating RT: " + json);
+        log("<hr></p><br>");
         // Disconnect the connection
         response.close();
     }
