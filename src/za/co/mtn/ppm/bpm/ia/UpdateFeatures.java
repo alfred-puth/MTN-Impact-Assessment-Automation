@@ -59,7 +59,7 @@ public class UpdateFeatures {
         ImpactAssessmentProcessor iaProcessor = new ImpactAssessmentProcessor();
         try {
             log("<<-- Update PPM Feature Fields from IS PMO Impact Assessment -->>");
-            log("<<- Get Impacted System Systems REST SQL Query ->>");
+            log("<<- Get Impacted System  REST SQL Query ->>");
             // Assign Impacted Systems table data to the ArrayList Object with the Impacted Systems table data
             ArrayList<ImpactedSystemValues> impactedSystemsData = iaProcessor.getIaImpactedSystemsTableData(ppmBaseUrl, username, password, SQL_REST_URL, requestId);
             // Check if Impacted Systems table is empty
@@ -80,11 +80,19 @@ public class UpdateFeatures {
                         // Check Feature Domain equal to "Test Automation"
                         if (featureDomain.equalsIgnoreCase("Test Automation")) {
                             // Update the IS PMO Testing Feature Request Type
-                            iaProcessor.updateFeatureRequestTypeImpactedSystemFields(ppmBaseUrl, username, password, REQ_REST_URL, featuresLinkedToIa.getFeatureRequestId(), impactedSystemsData, impactedSystemsData);
+                            // Variable to store All the Impacted System Values
+                            ArrayList<ImpactedSystemValues> allImpactedSystemValues = new ArrayList<>();
+                            // Iterate through All the Impacted Systems
+                            for (ImpactedSystemValues impactedSystems : impactedSystemsData) {
+                                allImpactedSystemValues.add(new ImpactedSystemValues(impactedSystems.getOctaneWorkspace(), impactedSystems.getIsDomain(), impactedSystems.getImpactedSystem(), impactedSystems.getInvolvement(), impactedSystems.getEstimateHours()));
+                            }
+                            // Update the IS PMO Feature Request Type
+                            iaProcessor.updateFeatureRequestTypeImpactedSystemFields(ppmBaseUrl, username, password, REQ_REST_URL, featuresLinkedToIa.getFeatureRequestId(), allImpactedSystemValues, impactedSystemsData);
                             // Update Octane Feature Impacted Systems through OpenText OO application if Octane Feature URL exists
                             String octFeatureUrl = featuresLinkedToIa.getOctaneFeatureUrl();
                             if (isNotBlankString(octFeatureUrl)) {
-                                OctaneFeatureOoProcessor ooProcessor = new OctaneFeatureOoProcessor(ooBaseUrl, ooAuthKey, octFeatureUrl, featureDomain);
+                                final String testingFeatureSystemsImpacted = iaProcessor.setImpactedSystemString(allImpactedSystemValues);
+                                OctaneFeatureOoProcessor ooProcessor = new OctaneFeatureOoProcessor(ooBaseUrl, ooAuthKey, octFeatureUrl, testingFeatureSystemsImpacted);
                                 ooProcessor.updateOctaneFeatureImpactedSystems();
                             }
                         } else {
@@ -103,7 +111,8 @@ public class UpdateFeatures {
                             // Update Octane Feature Impacted Systems through OpenText OO application if Octane Feature URL exists
                             String octFeatureUrl = featuresLinkedToIa.getOctaneFeatureUrl();
                             if (isNotBlankString(octFeatureUrl)) {
-                                OctaneFeatureOoProcessor ooProcessor = new OctaneFeatureOoProcessor(ooBaseUrl, ooAuthKey, octFeatureUrl, featureDomain);
+                                final String featureSystemsImpacted = iaProcessor.setImpactedSystemString(domainImpactedSystemValues);
+                                OctaneFeatureOoProcessor ooProcessor = new OctaneFeatureOoProcessor(ooBaseUrl, ooAuthKey, octFeatureUrl, featureSystemsImpacted);
                                 ooProcessor.updateOctaneFeatureImpactedSystems();
                             }
 

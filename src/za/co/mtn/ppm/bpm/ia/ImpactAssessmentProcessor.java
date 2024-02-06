@@ -1394,7 +1394,7 @@ public class ImpactAssessmentProcessor {
      * @param impactedSystemObj ArrayList with ImpactedSystemsValue Object data
      * @return Impacted Systems semicolon separated String
      */
-    private String setImpactedSystemString(ArrayList<ImpactedSystemValues> impactedSystemObj) {
+    protected String setImpactedSystemString(ArrayList<ImpactedSystemValues> impactedSystemObj) {
         // Set the Impacted Systems array for the IS Domain
         Set<String> stringSet = new HashSet<>();
         if (!impactedSystemObj.isEmpty()) {
