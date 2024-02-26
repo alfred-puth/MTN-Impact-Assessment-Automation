@@ -1,6 +1,7 @@
 package za.co.mtn.ppm.bpm.octane;
 
 import okhttp3.*;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -40,7 +41,7 @@ public class OctaneFeatureOoProcessor {
      *
      * @throws IOException Java IO Exceptions
      */
-    public void updateOctaneFeatureImpactedSystems() throws IOException {
+    public void updateOctaneFeatureImpactedSystems() throws IOException, JSONException {
         // REST API URL
         String ooUrl = getOoBaseUrl() + OO_URL;
         log("<<- Update OO Impacted Systems with OO ->>");
@@ -87,7 +88,7 @@ public class OctaneFeatureOoProcessor {
      * @param featureUrl           String with Octane Feature URL
      * @return JSON Object with the Payload
      */
-    private JSONObject setJsonObjectOORequest(String impactedApplications, String featureUrl) {
+    private JSONObject setJsonObjectOORequest(String impactedApplications, String featureUrl) throws JSONException {
         JSONObject jsonInputs = new JSONObject();
         jsonInputs.put("Impacted_Applications", impactedApplications);
         jsonInputs.put("Feature_URL", featureUrl);

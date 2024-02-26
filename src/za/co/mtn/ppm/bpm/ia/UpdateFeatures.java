@@ -1,5 +1,6 @@
 package za.co.mtn.ppm.bpm.ia;
 
+import org.json.JSONException;
 import za.co.mtn.ppm.bpm.octane.OctaneFeatureOoProcessor;
 
 import java.io.IOException;
@@ -122,7 +123,7 @@ public class UpdateFeatures {
                 log("<<-- End Update PUT Request (IS PMO Feature(s) or IS PMO Testing Feature) -->>");
 
             }
-        } catch (IOException | ParseException e) {
+        } catch (IOException | ParseException | JSONException e) {
             throw new RuntimeException(e);
         }
     }

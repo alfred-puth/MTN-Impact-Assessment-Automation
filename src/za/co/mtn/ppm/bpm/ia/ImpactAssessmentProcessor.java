@@ -164,21 +164,6 @@ public class ImpactAssessmentProcessor {
     }
 
     /**
-     * Method to set the SQL string to be used for extracting the IT Project Release Data that's linked to the IS PMO Impact Assessment
-     *
-     * @param prjId IT Project ID
-     * @return SQL String with the created SQL statement
-     */
-    private String setItProjectReleaseInformationSql(String prjId) {
-        // Create the sql string
-        String sql = "SELECT nvl(krd.visible_parameter11, 'null') AS ispmo_incl_retail_build, nvl(krd.visible_parameter12, 'null') AS ispmo_incl_charg_sys, nvl(krd.visible_parameter13, 'null') AS ispmo_incl_wholsal_rel, nvl(krd.visible_parameter14, 'null') AS ispmo_incl_siya_rel,  nvl(krd.visible_parameter15, 'null') AS ispmo_incl_ilula_rel, nvl(krd.visible_parameter20, 'null') AS ispmo_incl_siebel_rel";
-        sql = sql.concat(" FROM kcrt_fg_pfm_project kfpp")
-                .concat(" INNER JOIN kcrt_request_details krd ON kfpp.request_id = krd.request_id AND krd.batch_number = 1");
-        sql = sql.concat(" WHERE kfpp.prj_project_id = ").concat(prjId);
-        return sql;
-    }
-
-    /**
      * Method to set the SQL string to be used for extracting the EPMO Project Data that's linked to the IS PMO Impact Assessment
      *
      * @param prjId IT Project ID
@@ -288,7 +273,7 @@ public class ImpactAssessmentProcessor {
         // Set the JSONArray with the "results" token Array List
         JSONArray jsonResults = new JSONArray(json.getString("results"));
         ArrayList<String> result = new ArrayList<>();
-        if (!jsonResults.isEmpty()) {
+        if (jsonResults.length() != 0) {
             // Get the "values" token Array from the "results" token Array
             JSONArray jsonValues = new JSONArray(jsonResults.toString());
             for (int i = 0; i < jsonValues.length(); i++) {
@@ -361,7 +346,7 @@ public class ImpactAssessmentProcessor {
         // Set the JSONArray with the "results" token Array List
         JSONArray jsonResults = new JSONArray(json.getString("results"));
         ArrayList<String> result = new ArrayList<>();
-        if (!jsonResults.isEmpty()) {
+        if (jsonResults.length() != 0) {
             // Get the "values" token Array from the "results" token Array
             JSONArray jsonValues = new JSONArray(jsonResults.toString());
             for (int i = 0; i < jsonValues.length(); i++) {
@@ -657,7 +642,7 @@ public class ImpactAssessmentProcessor {
         // Set the JSONArray with the "results" token Array List
         JSONArray jsonResults = new JSONArray(json.getString("results"));
         ArrayList<ImpactedSystemValues> result = new ArrayList<>();
-        if (!jsonResults.isEmpty()) {
+        if (jsonResults.length() != 0) {
             // Get the "values" token Array from the "results" token Array
             JSONArray jsonValues = new JSONArray(jsonResults.toString());
             for (int i = 0; i < jsonValues.length(); i++) {
@@ -729,7 +714,7 @@ public class ImpactAssessmentProcessor {
         // Set the JSONArray with the "results" token Array List
         JSONArray jsonResults = new JSONArray(json.getString("results"));
         ArrayList<FeatureValues> result = new ArrayList<>();
-        if (!jsonResults.isEmpty()) {
+        if (jsonResults.length() != 0) {
             // Get the "values" token Array from the "results" token Array
             JSONArray jsonValues = new JSONArray(jsonResults.toString());
             for (int i = 0; i < jsonValues.length(); i++) {
@@ -785,7 +770,7 @@ public class ImpactAssessmentProcessor {
      * @return JSON Payload
      */
     private JSONObject setJsonObjectItEpmoCreateRequestType(String baseUrl, String iaRequestId, String iaProjectName, String iaIsDomain,
-                                                            HashMap<String, String> itProjectData, HashMap<String, String> epmoPrjData, ArrayList<ProjectMilestoneValues> itProjectMilestoneData) throws ParseException {
+                                                            HashMap<String, String> itProjectData, HashMap<String, String> epmoPrjData, ArrayList<ProjectMilestoneValues> itProjectMilestoneData) throws ParseException, JSONException {
         // Set the Token Prefix variables (RT Header or RT Details)
         final String headerFieldPrefix = "REQ.";
         final String detailsFieldPrefix = "REQD.";
@@ -844,7 +829,7 @@ public class ImpactAssessmentProcessor {
             final String featureKey = featureFieldSet.getKey();
             final String featureFieldValue = featureFieldSet.getValue();
             // PPM Feature Description Field update
-            String featureDescription = null;
+            String featureDescription;
             if (featureKey.equalsIgnoreCase("ISPMO_PRJ_URL")) {
                 // Set variable for the IT Project Name to be used for the Feature Description
                 featureDescription = projectProcessor.setFeatureDescription(itProjectData.get("ISPMO_PRJ_NUM"), iaProjectName, itProjectData.get("EPMO_PROJECT_NUM"));
@@ -885,7 +870,7 @@ public class ImpactAssessmentProcessor {
      * @return JSON Payload
      */
     private JSONObject setJsonObjectNoneEpmoCreateRequestType(String baseUrl, String iaRequestId, String iaProjectName, String iaIsDomain,
-                                                              HashMap<String, String> itProjectData, ArrayList<ProjectMilestoneValues> itProjectMilestoneData) throws ParseException {
+                                                              HashMap<String, String> itProjectData, ArrayList<ProjectMilestoneValues> itProjectMilestoneData) throws ParseException, JSONException {
         // Set the Token Prefix variables (RT Header or RT Details)
         final String headerFieldPrefix = "REQ.";
         final String detailsFieldPrefix = "REQD.";
@@ -926,7 +911,7 @@ public class ImpactAssessmentProcessor {
             final String featureKey = featureFieldSet.getKey();
             final String featureFieldValue = featureFieldSet.getValue();
             // PPM Feature Description Field update
-            String featureDescription = null;
+            String featureDescription;
             if (featureKey.equalsIgnoreCase("ISPMO_PRJ_URL")) {
                 // Set variable for the IT Project Name to be used for the Feature Description
                 featureDescription = projectProcessor.setFeatureDescription(itProjectData.get("ISPMO_PRJ_NUM"), iaProjectName);
@@ -961,7 +946,7 @@ public class ImpactAssessmentProcessor {
      * @param strValue String Value Array
      * @return the JSONObject for the Request Field Object
      */
-    private JSONObject setRequestFieldJsonObj(String strToken, String strValue) {
+    private JSONObject setRequestFieldJsonObj(String strToken, String strValue) throws JSONException {
         // Declare the Request Field Object
         JSONObject requestFieldObj = new JSONObject();
         requestFieldObj.put("token", strToken);
@@ -1006,7 +991,7 @@ public class ImpactAssessmentProcessor {
                 .callTimeout(90, TimeUnit.SECONDS).build();
         MediaType mediaType = MediaType.parse("application/json");
         // JSON Payload
-        String jsonPayload = null;
+        String jsonPayload;
         switch (iaProjectRequestType) {
             case "IS PMO IT-EPMO Project":
                 jsonPayload = setJsonObjectItEpmoCreateRequestType(ppmBaseUrl, iaRequestId, iaProjectName, iaDomain, itProjectData, epmoPrjData, itProjectMilestonesArrayList).toString();
@@ -1100,7 +1085,7 @@ public class ImpactAssessmentProcessor {
      * @param allImpactedSystemsObjArray All Impacted System Table data
      * @return Json Object with the payload
      */
-    private JSONObject setJsonObjectUpdateFeatureRequestTypeImpactedSystemFields(ArrayList<ImpactedSystemValues> impactedSystemsObjArray, ArrayList<ImpactedSystemValues> allImpactedSystemsObjArray) {
+    private JSONObject setJsonObjectUpdateFeatureRequestTypeImpactedSystemFields(ArrayList<ImpactedSystemValues> impactedSystemsObjArray, ArrayList<ImpactedSystemValues> allImpactedSystemsObjArray) throws JSONException {
         // Get the current date and time in "yyyy-MM-dd'T'HH:mm:ss" format" No need to
         // include include the micro seconds and timezone
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -1261,7 +1246,7 @@ public class ImpactAssessmentProcessor {
         // Build the string with HTML tags for a table
         if (!domainInvolvementObj.isEmpty()) {
             // Header Table string
-            String headerHtmlTable = null;
+            String headerHtmlTable;
             // Add header of the html table
             headerHtmlTable = "<table style=\"border: 1px solid black; border-collapse: collapse; width: 98%;\">";
             headerHtmlTable = headerHtmlTable.concat("<tr>");
@@ -1276,7 +1261,7 @@ public class ImpactAssessmentProcessor {
             // Iterate through the Domain Involvement Object
             for (ImpactedSystemValues impactedSystemValues : domainInvolvementObj) {
                 // Inner Table string
-                String innerHtmlTable = null;
+                String innerHtmlTable;
                 // Create the Row in the table body
                 innerHtmlTable = "<tr>";
                 // Systems Impacted
