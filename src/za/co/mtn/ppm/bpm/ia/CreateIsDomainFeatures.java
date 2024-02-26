@@ -88,11 +88,8 @@ public class CreateIsDomainFeatures {
                 } else {
                     log("Domains list: " + domainCreationList);
                     log("<<- Get IT Project Data REST SQL Query ->>");
-                    HashMap<String, String> itProjectInformation = iaProcessor.getItProjectData(ppmBaseUrl, username, password,
-                            SQL_REST_URL, projectId);
-                    log("<<- Get IT Project Release Data REST SQL Query->>");
-                    HashMap<String, String> itProjectReleaseInformation = iaProcessor.getItProjectReleaseData(ppmBaseUrl, username, password,
-                            SQL_REST_URL, projectId);
+                    HashMap<String, String> itProjectInformation = iaProcessor.getItProjectData(ppmBaseUrl, username, password, SQL_REST_URL, projectId, projectRequestType);
+                    // Get the EPMO Project Info depending on the IT Project Rerquest Type
                     HashMap<String, String> epmoProjectInformation = new HashMap<>();
                     if (projectRequestType.equalsIgnoreCase("IS PMO IT-EPMO Project")) {
                         log("<<- Get EPMO Project Data REST SQL Query->>");
@@ -107,7 +104,7 @@ public class CreateIsDomainFeatures {
                     Set<String> stringSet = new HashSet<>();
                     for (String domainList : domainCreationList) {
                         log("Domain List " + domainCreationList.indexOf(domainList) + ": " + domainList);
-                        String newRequestId = iaProcessor.createIspmoFeatureRequest(ppmBaseUrl, username, password, REQ_REST_URL, requestId, projectName, domainList, itProjectInformation, itProjectReleaseInformation, epmoProjectInformation, projectMilestoneArraylist);
+                        String newRequestId = iaProcessor.createIspmoFeatureRequest(ppmBaseUrl, username, password, REQ_REST_URL, requestId, projectName, domainList, projectRequestType, itProjectInformation, epmoProjectInformation, projectMilestoneArraylist);
                         log("Created IS PMO Feature Number:" + newRequestId);
                         // Add the Request IDs to the String Set
                         stringSet.add(newRequestId);
@@ -126,7 +123,7 @@ public class CreateIsDomainFeatures {
 
             }
 
-        } catch (IOException | ParseException | JSONException e) {
+        } catch (IOException | JSONException | ParseException e) {
             throw new RuntimeException(e);
         }
     }
